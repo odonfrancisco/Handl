@@ -1,6 +1,13 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
+// Dispute Enum
+const dispute = {
+    None: 0,
+    Internal: 1,
+    ThirdParty: 2
+}
+
 describe("TaskAgreement", () => {
     it("Should create task successfully", async () => {
         const [addr1, addr2] = await ethers.getSigners();
@@ -17,7 +24,7 @@ describe("TaskAgreement", () => {
 
         for(let i = 0; i < 2; i++){
             const createTaskTx = await (await taskAgreement
-                .createTask(provider, consumer, taskDescriptions[i], prices[i])).wait();
+                .createTask(provider, taskDescriptions[i], {value: prices[i]})).wait();
             const emittedEvent = createTaskTx.events[0].args;
             const emittedTask = emittedEvent.task;
             emittedTasks.push(emittedTask);
@@ -27,16 +34,24 @@ describe("TaskAgreement", () => {
 
         for(let i = 0; i < 2; i++){                
             const newTask = await taskAgreement.getTask(i);
-            expect(emittedTasks[i].price).to.equal(prices[i]);
-            expect(emittedTasks[i].description).to.equal(taskDescriptions[i]);
-            expect(emittedTasks[i].provider).to.equal(provider);
-            expect(emittedTasks[i].consumer).to.equal(consumer);
-            expect(emittedTasks[i].id).to.equal(i);
-            expect(newTask.price).to.equal(emittedTasks[i].price);
-            expect(newTask.description).to.equal(emittedTasks[i].description);
-            expect(newTask.provider).to.equal(emittedTasks[i].provider);
-            expect(newTask.consumer).to.equal(emittedTasks[i].consumer);
-            expect(newTask.id).to.equal(emittedTasks[i].id);
+            const currentTask = emittedTasks[i];
+            expect(currentTask.price).to.equal(prices[i]);
+            expect(currentTask.description).to.equal(taskDescriptions[i]);
+            expect(currentTask.provider.to).to.equal(provider);
+            expect(currentTask.consumer.to).to.equal(consumer);
+            expect(currentTask.id).to.equal(i);
+            expect(currentTask.dispute).to.equal(dispute.None);
+            expect(newTask.price).to.equal(currentTask.price);
+            expect(newTask.description).to.equal(currentTask.description);
+            expect(newTask.provider.to).to.equal(currentTask.provider.to);
+            expect(newTask.consumer.to).to.equal(currentTask.consumer.to);
+            expect(newTask.id).to.equal(currentTask.id);
+            expect(newTask.dispute).to.equal(currentTask.dispute);
         }
+
+        const balance = await ethers.provider.getBalance(taskAgreement.address);
+        const reducer = (accumulator, currentValue) => accumulator + currentValue;
+        const pricesSumBN = await ethers.BigNumber.from(prices.reduce(reducer));
+        expect(balance).to.equal(pricesSumBN);
     })
 })
