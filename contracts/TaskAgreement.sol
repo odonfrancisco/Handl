@@ -22,8 +22,8 @@ contract TaskAgreement {
         string description;
         User provider;
         User consumer;
+        User thirdParty;
         DisputeStage dispute;
-        address payable thirdParty;
         bool completed;
     }
 
@@ -37,6 +37,7 @@ contract TaskAgreement {
     uint numTasks;
     mapping(address => uint[]) userTasks;
     mapping(uint => Task) tasks;
+    Task[] disputedTasks;
     
     constructor() {}
 
@@ -53,9 +54,8 @@ contract TaskAgreement {
     function createTask(
         address payable providerAddress, 
         string memory description
-    ) external payable {
-        require(bytes(description).length > 0, 
-            "Task description must be of valid length");
+    ) external payable
+    validEthQuantity() validStrLength(description) {
         Task memory task;
         User memory provider;
         User memory consumer;
@@ -77,34 +77,37 @@ contract TaskAgreement {
         numTasks++; 
     }
 
+    // Add function where consumer can increase the price(and send more ether);
+
+    // Should i add a limit to how much evidence one party can provide?
     function addEvidence(
         uint taskId,
         string calldata evidence
-    ) external validTaskId(taskId) {
+    ) external 
+    validTaskId(taskId) notCompleted(taskId) 
+    isValidUser(taskId) validStrLength(evidence) {
         Task storage task = tasks[taskId];
-        require(task.consumer.to == msg.sender || task.provider.to == msg.sender, 
-            "Can not add evidence to a task you're not a part of");
-        if(task.consumer.to == msg.sender) {
+        if(msg.sender == task.consumer.to) {
             task.consumer.evidence.push(evidence);
-        } else if(task.provider.to == msg.sender) {
+        } else if(msg.sender == task.provider.to) {
             task.provider.evidence.push(evidence);
         }
     }
 
     function approveTask(
         uint taskId
-    ) external validTaskId(taskId) {
+    ) external 
+    validTaskId(taskId) notCompleted(taskId) isValidUser(taskId) {
         Task storage task = tasks[taskId];
-        // if msg.sender is consumer, require that provider has approved task first
         // I think i'm also supposed to handle different dispute settings? not sure
-        if(task.consumer.to == msg.sender) {
+        if(msg.sender == task.consumer.to) {
             require(task.provider.approved,
                 "Provider must approve task before you can approve eth transfer");
             require(!task.consumer.approved,
                 "You can not approve a task twice");
             task.consumer.approved = true;
             // call function to transfer funds to provider;
-        } else if(task.provider.to == msg.sender) {
+        } else if(msg.sender == task.provider.to) {
             require(!task.provider.approved,
                 "You can not approve a task twice");
             task.provider.approved = true;
@@ -116,49 +119,87 @@ contract TaskAgreement {
 
     function disapproveTask(
         uint taskId
-    ) external validTaskId(taskId) {
+    ) external 
+    validTaskId(taskId) notCompleted(taskId) isValidUser(taskId) {
         Task storage task = tasks[taskId];
+        if(msg.sender == task.consumer.to) {
+            require(task.provider.approved,
+                "Provider must approve task on their end before you can open a dispute");
+        }
         // Is there a better way to structure all this without the nested ifs?
         if(task.dispute == DisputeStage.None) {
-            if(task.consumer.to == msg.sender) {
-                require(task.provider.approved,
-                    "Provider must approve task on their end before you can open a dispute");
+            if(msg.sender == task.consumer.to) {
                 task.consumer.approved = false;
+                task.provider.approved = false;
                 task.dispute = DisputeStage.Internal;
-            } else if(task.provider.to == msg.sender) {
+            } else if(msg.sender == task.provider.to) {
                 /* WTF would i do here? if provider immediately wants to open
                 a dispute, therefore not get paid??? not sure lol */
             }
         } else if(task.dispute == DisputeStage.Internal) {
-            if(task.consumer.to == msg.sender) {
-                require(task.provider.approved,
-                    "Provider must approve task on their end before you can open a dispute");
+            if(msg.sender == task.consumer.to) {
                 task.consumer.approved = false;
+                task.provider.approved = false;
                 task.dispute = DisputeStage.ThirdParty;
-            } else if(task.provider.to == msg.sender) {
+                // add task to disputedTasks array.
+            } else if(msg.sender == task.provider.to) {
                 /* If provider disapproves task while dispute is internal, then 
                 ether should be sent back to consumer. */
-                // call function to send funds to consumer
+                task.consumer.to.transfer(task.price);
+                task.completed = true;
             }
         } else if(task.dispute == DisputeStage.ThirdParty) {
-            require(msg.sender == task.thirdParty, 
+            require(msg.sender == task.thirdParty.to, 
                 "Only the third party may make a decision at this stage of dispute");
             // Call function to send funds back to consumer
         }
 
     }
 
-    function assignThirdParty(uint taskId) external validTaskId(taskId) {
+    function assignThirdParty(
+        uint taskId
+    ) external 
+    validTaskId(taskId) notCompleted(taskId) {
         Task storage task = tasks[taskId];
-        require(task.thirdParty == address(0), 
+        require(task.thirdParty.to == address(0), 
             "A third party has already been assigned to this task");
         require(task.dispute == DisputeStage.ThirdParty,
             "Cannot assign a third party to this task until internally decided");
-        task.thirdParty = payable(msg.sender);
+        User memory thirdParty;
+        thirdParty.to = payable(msg.sender);
+        task.thirdParty = thirdParty;
     } 
+    
 
     modifier validTaskId(uint taskId) {
         require(taskId < numTasks, "Must pass a valid task ID");
+        _;
+    }
+
+    modifier notCompleted(uint taskId) {
+        require(!tasks[taskId].completed, "This task has already been completed");
+        _;
+    }
+    // I wish there was a way to pass the result of a modifier into the function/next modifier
+    modifier isValidUser(uint taskId) {
+        Task memory task = tasks[taskId];
+        require(
+            msg.sender == task.consumer.to 
+            || msg.sender == task.provider.to
+            || msg.sender == task.thirdParty.to, 
+            "Can not interact with a task you're not a part of");
+        _;
+    }
+
+    modifier validStrLength(string memory str) {
+        require(bytes(str).length > 0, 
+            "String argument must be of valid length");
+        _;
+    }
+
+    modifier validEthQuantity() {
+        require(msg.value > 0,
+            "Must send ether to execute function");
         _;
     }
 }
