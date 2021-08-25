@@ -35,9 +35,10 @@ contract TaskAgreement {
 
 
     uint numTasks;
+    uint[] disputedTasks;
+    // not sure if this mapping is necessary
     mapping(address => uint[]) userTasks;
     mapping(uint => Task) tasks;
-    Task[] disputedTasks;
     
     constructor() {}
 
@@ -49,6 +50,10 @@ contract TaskAgreement {
     function getUserTasks(address userAddress) external view returns(uint[] memory) {
         uint[] memory usersTasks = userTasks[userAddress];
         return usersTasks;
+    }
+
+    function getDisputedTasks() external view returns(uint[] memory) {
+        return disputedTasks;
     }
 
     function createTask(
@@ -92,6 +97,7 @@ contract TaskAgreement {
         } else if(msg.sender == task.provider.to) {
             task.provider.evidence.push(evidence);
         }
+        // task.thirdParty should be able to add evidence as well
     }
 
     function approveTask(
@@ -104,17 +110,26 @@ contract TaskAgreement {
         if(msg.sender == task.consumer.to) {
             require(task.provider.approved,
                 "Provider must approve task before you can approve eth transfer");
+            /* This check seems like a bit of a waste since this
+            function won't execute unless the task hasn't been completed */ 
+            /* ^ if(task.consumer.approved), then that automatically means task.completed.
+            therefore this function wouldn't even be running */
             require(!task.consumer.approved,
                 "You can not approve a task twice");
+            task.provider.to.transfer(task.price);
             task.consumer.approved = true;
-            // call function to transfer funds to provider;
+            task.completed = true;
         } else if(msg.sender == task.provider.to) {
             require(!task.provider.approved,
                 "You can not approve a task twice");
             task.provider.approved = true;
         }
         if(task.dispute == DisputeStage.ThirdParty){
+            /* need to incorporate the commission percentage 
+            that thirdParty receives */
             task.provider.to.transfer(task.price);
+            task.thirdParty.approved = true;
+            task.completed = true;
         }
     }
 
@@ -135,23 +150,25 @@ contract TaskAgreement {
                 task.provider.approved = false;
                 task.dispute = DisputeStage.Internal;
             } else if(msg.sender == task.provider.to) {
-                /* WTF would i do here? if provider immediately wants to open
-                a dispute, therefore not get paid??? not sure lol */
+                task.consumer.to.transfer(task.price);
+                task.completed = true;
             }
         } else if(task.dispute == DisputeStage.Internal) {
             if(msg.sender == task.consumer.to) {
                 task.consumer.approved = false;
                 task.provider.approved = false;
                 task.dispute = DisputeStage.ThirdParty;
-                // add task to disputedTasks array.
+                disputedTasks.push(task.id);
             } else if(msg.sender == task.provider.to) {
-                /* If provider disapproves task while dispute is internal, then 
+                /* If provider disapproves task, then 
                 ether should be sent back to consumer. */
                 task.consumer.to.transfer(task.price);
                 task.completed = true;
             }
         } else if(task.dispute == DisputeStage.ThirdParty) {
             task.consumer.to.transfer(task.price);
+            task.completed = true;
+            // remove task from disputedTasks.array
         }
 
     }
