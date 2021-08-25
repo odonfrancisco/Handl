@@ -9,7 +9,7 @@ const dispute = {
     ThirdParty: 2
 }
 
-let taskDescriptions = ["Test Task", "Test 2", "Test 3"];
+let taskDescriptions = ["Test Task", "Test 2", "Test 3", "Test 4"];
 let providerEvidence = [
     "https://www.acutaboveexteriors.com/wp-content/uploads/2020/05/file-3.jpg",
     "https://www.sempersolaris.com/wp-content/uploads/2018/08/roof-1-760x340.jpg"
@@ -18,7 +18,7 @@ let consumerEvidence = [
     "http://www.homebyhomeexteriors.com/wp-content/uploads/2014/04/photo-5.jpg",
     "http://gjkeller.com/wp-content/uploads/2017/05/when-roofing-goes-wrong-1.jpg"
 ];
-let prices = [35, 49, 43];
+let prices = [35, 49, 43, 26];
 const reducer = (accumulator, currentValue) => accumulator + currentValue;
 
 
@@ -34,10 +34,10 @@ describe("TaskAgreement", () => {
         [consumer, provider, thirdParty] = await ethers.getSigners();
     })
     
-    it("Should create task successfully", async () => {
+    it("Should create tasks successfully", async () => {
         const emittedTasks = [];
 
-        for(let i = 0; i < 3; i++){
+        for(let i = 0; i < 4; i++){
             const createTaskTx = await 
                 (await taskAgreement
                 .connect(consumer)
@@ -49,9 +49,9 @@ describe("TaskAgreement", () => {
             emittedTasks.push(emittedTask);
         }
 
-        expect(emittedTasks.length).to.equal(3);
+        expect(emittedTasks.length).to.equal(4);
 
-        for(let i = 0; i < 3; i++){                
+        for(let i = 0; i < 4; i++){                
             const newTask = await taskAgreement.getTask(i);
             const currentTask = emittedTasks[i];
             const currentTaskPrice = formatEther(currentTask.price);
@@ -73,6 +73,29 @@ describe("TaskAgreement", () => {
         const balance = await ethers.provider.getBalance(taskAgreement.address);
         pricesSumBN = parseEther(prices.reduce(reducer).toString())
         expect(balance).to.equal(pricesSumBN);
+    })
+
+    it("Should bring tasks 3 & 4 up to speed", async () => {
+        let taskId = taskIds[2];
+        // have to bring 3rd task all the way up to dispute.internal
+        await (await taskAgreement.connect(provider)
+            .approveTask(taskId)).wait()
+        await (await taskAgreement.connect(consumer)
+            .disapproveTask(taskId)).wait()
+        await (await taskAgreement.connect(provider)
+            .approveTask(taskId)).wait()
+        // have to bring 4rd task all the way up to dispute.thirdParty
+        taskId = taskIds[3];
+        await (await taskAgreement.connect(provider)
+            .approveTask(taskId)).wait()
+        await (await taskAgreement.connect(consumer)
+            .disapproveTask(taskId)).wait()
+        await (await taskAgreement.connect(provider)
+            .approveTask(taskId)).wait()
+        await (await taskAgreement.connect(consumer)
+            .disapproveTask(taskId)).wait()
+        await (await taskAgreement.connect(thirdParty)
+            .assignThirdParty(taskId)).wait()
     })
 
     it("Should NOT create task if description not valid length", async () => {
@@ -154,14 +177,14 @@ describe("TaskAgreement", () => {
         ).to.be.revertedWith("You can not approve a task twice");        
     })
 
-    it("Should NOT disapprove task-DISPUTE.NONE by consumer before provider has chance to approve", async () => {
+    it("Should NOT disapprove task.DISPUTE.NONE by consumer before provider has chance to approve", async () => {
         await expect(
             taskAgreement.connect(consumer)
                 .disapproveTask(taskIds[1])
         ).to.be.revertedWith("Provider must approve task on their end before you can open a dispute")
     })
 
-    it("Should disapprove task-DISPUTE.NONE by consumer after provider has approved task", async () => {
+    it("Should disapprove task.DISPUTE.NONE by consumer after provider has approved task", async () => {
         const taskId = taskIds[1];
         await (await taskAgreement.connect(provider)
             .approveTask(taskId)).wait();
@@ -173,7 +196,7 @@ describe("TaskAgreement", () => {
         expect(task.provider.approved).to.false;
     })
 
-    it("Should NOT disapprove task-DISPUTE.INTERNAL by consumer before provider approves", async () => {
+    it("Should NOT disapprove task.DISPUTE.INTERNAL by consumer before provider approves", async () => {
         const taskId = taskIds[1];
         await expect(
             taskAgreement.connect(consumer)
@@ -181,7 +204,7 @@ describe("TaskAgreement", () => {
         ).to.be.revertedWith("Provider must approve task on their end before you can open a dispute")
     })
 
-    it("Should disapprove task-DISPUTE.INTERNAL by provider and send eth back to consumer", async () => {
+    it("Should disapprove task.DISPUTE.INTERNAL by provider and send eth back to consumer", async () => {
         const taskId = taskIds[1];
         const consumerBalanceBefore = await consumer.getBalance();
         await (await taskAgreement.connect(provider)
@@ -196,6 +219,88 @@ describe("TaskAgreement", () => {
             .to.equal(parseEther(taskPrice))
     })
 
-    // it("Should ")
+    it("Should NOT assign third party at task.DISPUTE.INTERNAL", async () => {
+        const taskId = taskIds[2];
+        await expect(
+            taskAgreement.connect(thirdParty)
+                .assignThirdParty(taskId)
+        ).to.revertedWith("Cannot assign a third party to this task until internally decided");
+    })
+
+    it("Should NOT assign third party if not valid task ID", async () => {
+        await expect(
+            taskAgreement.connect(thirdParty)
+                .assignThirdParty(9813)
+        ).to.revertedWith("Must pass a valid task ID");
+    })
+
+    it("Should disapprove task.DISPUTE.INTERNAL by consumer", async () => {
+        const taskId = taskIds[2];
+        await (await taskAgreement.connect(consumer)
+            .disapproveTask(taskId)).wait()
+        const task = await taskAgreement.getTask(taskId);
+        expect(task.dispute).to.equal(dispute.ThirdParty)
+    })
+
+    it("Should NOT dissaprove||approve task.DISPUTE.THIRDPARTY if not third party", async () => {
+        const taskId = taskIds[2];
+        await (expect(
+            taskAgreement.connect(provider)
+                .approveTask(taskId)
+        ).to.revertedWith("Only the third party may make a decision at this stage of dispute"))
+        await (expect(
+            taskAgreement.connect(consumer)
+                .disapproveTask(taskId)
+        ).to.revertedWith("Only the third party may make a decision at this stage of dispute"))
+    })
+
+    it("Should assign third party to task", async () => {
+        const taskId = taskIds[2];
+        await (await taskAgreement.connect(thirdParty)
+            .assignThirdParty(taskId)).wait();
+        const task = await taskAgreement.getTask(taskId);
+        expect(task.thirdParty.to).to.equal(thirdParty.address);
+    })
+
+    it("Should NOT assign third party twice", async () => {
+        const taskId = taskIds[2];
+        await expect(
+            taskAgreement.connect(thirdParty)
+                .assignThirdParty(taskId)
+        ).to.revertedWith("A third party has already been assigned to this task")
+    })
+
+    /* if i were to include a voting feature instead of just one thirdParty, 
+     would need another test to test that it's not assigning same third party twice */
+    
+    // test thirdParty approving && disapproving a task
+    it("Should disapprove task.DISPUTE.THIRDPARTY as thirdParty", async () => {
+        const taskId = taskIds[2];
+        const task = await taskAgreement.getTask(taskId);
+        const consumerBalanceBefore = await consumer.getBalance();
+        await (await taskAgreement
+            .connect(thirdParty)
+            .disapproveTask(taskId)).wait();
+        const consumerBalanceAfter = await consumer.getBalance();
+        const balanceDelta = consumerBalanceAfter.sub(consumerBalanceBefore);
+        
+        expect(balanceDelta).to.equal(task.price);
+    })
+
+    it("Should approve task.DISPUTE.THIRDPARTY as thirdParty", async () => {
+        const taskId = taskIds[3];
+        const task = await taskAgreement.getTask(taskId);
+        const providerBalanceBefore = await provider.getBalance();
+        await (await taskAgreement
+            .connect(thirdParty)
+            .approveTask(taskId)).wait();
+        const providerBalanceAfter = await provider.getBalance();
+        const balanceDelta = providerBalanceAfter.sub(providerBalanceBefore);
+
+        expect(balanceDelta).to.equal(task.price);
+    })
+    
+    // need to test that no function works when a task is completed
+    // need to test both sides of approval function at dispute.none and dispute.internal
     
 })

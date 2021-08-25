@@ -97,7 +97,8 @@ contract TaskAgreement {
     function approveTask(
         uint taskId
     ) external 
-    validTaskId(taskId) notCompleted(taskId) isValidUser(taskId) {
+    validTaskId(taskId) notCompleted(taskId) 
+    isValidUser(taskId) requireThirdParty(taskId) {
         Task storage task = tasks[taskId];
         // I think i'm also supposed to handle different dispute settings? not sure
         if(msg.sender == task.consumer.to) {
@@ -112,15 +113,16 @@ contract TaskAgreement {
                 "You can not approve a task twice");
             task.provider.approved = true;
         }
-        // Need to handle IF thirdParty;
-        /* IF thirdParty == msg.sender && task.dispute == DisputeStage.ThirdParty,
-        send funds to provider */
+        if(task.dispute == DisputeStage.ThirdParty){
+            task.provider.to.transfer(task.price);
+        }
     }
 
     function disapproveTask(
         uint taskId
     ) external 
-    validTaskId(taskId) notCompleted(taskId) isValidUser(taskId) {
+    validTaskId(taskId) notCompleted(taskId) 
+    isValidUser(taskId) requireThirdParty(taskId) {
         Task storage task = tasks[taskId];
         if(msg.sender == task.consumer.to) {
             require(task.provider.approved,
@@ -149,9 +151,7 @@ contract TaskAgreement {
                 task.completed = true;
             }
         } else if(task.dispute == DisputeStage.ThirdParty) {
-            require(msg.sender == task.thirdParty.to, 
-                "Only the third party may make a decision at this stage of dispute");
-            // Call function to send funds back to consumer
+            task.consumer.to.transfer(task.price);
         }
 
     }
@@ -188,6 +188,15 @@ contract TaskAgreement {
             || msg.sender == task.provider.to
             || msg.sender == task.thirdParty.to, 
             "Can not interact with a task you're not a part of");
+        _;
+    }
+
+    modifier requireThirdParty(uint taskId) {
+        Task memory task = tasks[taskId];
+        if(task.dispute == DisputeStage.ThirdParty) {
+            require(msg.sender == task.thirdParty.to,
+                "Only the third party may make a decision at this stage of dispute");
+        }
         _;
     }
 
