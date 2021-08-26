@@ -33,16 +33,12 @@ contract TaskAgreement {
         ThirdParty
     }
 
-
     uint constant public commission = 4;
     uint numTasks;
     uint[] disputedTasks;
-    // not sure if this mapping is necessary
     mapping(address => uint[]) userTasks;
     mapping(uint => Task) tasks;
     
-    constructor() {}
-
     function getTask(uint taskId) external view returns(Task memory) {
         Task memory requestedTask = tasks[taskId];
         return requestedTask;
@@ -83,7 +79,13 @@ contract TaskAgreement {
         numTasks++; 
     }
 
-    // Add function where consumer can increase the price(and send more ether);
+    function addFunds(uint taskId) external payable 
+    validEthQuantity() {
+        Task storage task = tasks[taskId];
+        require(msg.sender == task.consumer.to,
+            "Only the consumer of this task may add funds");
+        task.price = task.price + msg.value;
+    }
 
     // Should i add a limit to how much evidence one party can provide?
     function addEvidence(
@@ -174,7 +176,12 @@ contract TaskAgreement {
                 task.completed = true;
             }
         } else if(task.dispute == DisputeStage.ThirdParty) {
-            task.consumer.to.transfer(task.price);
+            uint thirdPartyCommission = task.price * commission / 100;
+            uint newTxPrice = task.price - thirdPartyCommission;
+
+            task.consumer.to.transfer(newTxPrice);
+            task.thirdParty.to.transfer(thirdPartyCommission);
+
             task.completed = true;
             removeFromDisapproved(taskId);
         }

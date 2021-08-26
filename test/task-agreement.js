@@ -121,6 +121,37 @@ describe("TaskAgreement", () => {
         ).to.be.revertedWith("Must send ether to execute function")
     })
 
+    it("Should add funds to task correctly", async () => {
+        const taskId = taskIds[2];
+        let task = await taskAgreement.getTask(taskId);
+        const prevTaskPrice = task.price;
+        await (await taskAgreement.connect(consumer)
+            .addFunds(taskId, {value: parseEther('12')})).wait();
+        task = await taskAgreement.getTask(taskId);
+        const newTaskPrice = task.price;
+        expect(newTaskPrice).to.equal(prevTaskPrice.add(ethers.BigNumber.from(parseEther('12')))); 
+    })
+
+    it("Should NOT add funds to task if not consumer", async () => {
+        const taskId = taskIds[0];
+        await expect(
+            taskAgreement.connect(thirdParty)
+                .addFunds(taskId, {value: parseEther('12')})
+        ).to.be.revertedWith("Only the consumer of this task may add funds")
+        await expect(
+            taskAgreement.connect(provider)
+                .addFunds(taskId, {value: parseEther('12')})
+        ).to.be.revertedWith("Only the consumer of this task may add funds")
+    })
+
+    it("Should NOT add funds if no eth was received", async () => {
+        const taskId = taskIds[0];
+        await expect(
+            taskAgreement.connect(consumer)
+                .addFunds(taskId)
+        ).to.be.revertedWith("Must send ether to execute function")
+    })
+
     it("Should add evidence to task correctly", async () => {
         const [evidence, evidence2] = providerEvidence;
         await taskAgreement
@@ -339,26 +370,31 @@ describe("TaskAgreement", () => {
     
     it("Should disapprove task.DISPUTE.THIRDPARTY as thirdParty", async () => {
         const taskId = taskIds[2];
-        const task = await taskAgreement.getTask(taskId);
         const consumerBalanceBefore = await consumer.getBalance();
         const thirdPartyBalanceBefore = await thirdParty.getBalance();
         let disputedTasks = await taskAgreement.getDisputedTasks();
         let disputedTaskId = disputedTasks.filter(id => id.eq(taskId));
         expect(disputedTaskId.length).to.equal(1);
         expect(disputedTaskId[0]).to.equal(taskId);
-        await (await taskAgreement
+        const tx = await (await taskAgreement
             .connect(thirdParty)
             .disapproveTask(taskId)).wait();
+        const task = await taskAgreement.getTask(taskId);
+        disputedTasks = await taskAgreement.getDisputedTasks();
+        disputedTaskId = disputedTasks.filter(id => id.eq(taskId));
+        expect(disputedTaskId.length).to.equal(0);
         const consumerBalanceAfter = await consumer.getBalance();
         const consumerBalanceDelta = consumerBalanceAfter.sub(consumerBalanceBefore);
         const thirdPartyBalanceAfter = await thirdParty.getBalance();
         const thirdPartyBalanceDelta = thirdPartyBalanceAfter.sub(thirdPartyBalanceBefore);
-        
-        expect(consumerBalanceDelta).to.equal(task.price);
-        // expect thirdPartyDelta to equal task.price * percentage
-        disputedTasks = await taskAgreement.getDisputedTasks();
-        disputedTaskId = disputedTasks.filter(id => id.eq(taskId));
-        expect(disputedTaskId.length).to.equal(0);
+        const commission = await taskAgreement.commission();
+        const thirdPartyCommission = task.price.mul(commission).div(100);
+        const newTaskPrice = task.price.sub(thirdPartyCommission);
+        const gasUsed = tx.effectiveGasPrice.mul(tx.gasUsed);
+
+        expect(consumerBalanceDelta).to.equal(newTaskPrice);
+        expect(thirdPartyBalanceDelta.add(gasUsed)).to.equal(thirdPartyCommission);
+        expect(task.completed).to.be.true;
     })
 
     it("Should approve task.DISPUTE.THIRDPARTY as thirdParty", async () => {
@@ -369,17 +405,19 @@ describe("TaskAgreement", () => {
             .connect(thirdParty)
             .approveTask(taskId)).wait();
         const task = await taskAgreement.getTask(taskId);
+        disputedTasks = await taskAgreement.getDisputedTasks();
+        disputedTaskId = disputedTasks.filter(id => id.eq(taskId));
+        expect(disputedTaskId.length).to.equal(0);
         const providerBalanceAfter = await provider.getBalance();
         const providerBalanceDelta = providerBalanceAfter.sub(providerBalanceBefore);
         const thirdPartyBalanceAfter = await thirdParty.getBalance();
         const thirdPartyBalanceDelta = thirdPartyBalanceAfter.sub(thirdPartyBalanceBefore);
         const commission = await taskAgreement.commission();
         const thirdPartyCommission = task.price.mul(commission).div(100);
-        const newTxPrice = task.price.sub(thirdPartyCommission);
+        const newTaskPrice = task.price.sub(thirdPartyCommission);
         const gasUsed = tx.effectiveGasPrice.mul(tx.gasUsed);
 
-        // Need to replicate this for disapproving dispute.thirdparty
-        expect(providerBalanceDelta).to.equal(newTxPrice);
+        expect(providerBalanceDelta).to.equal(newTaskPrice);
         expect(thirdPartyBalanceDelta.add(gasUsed)).to.equal(thirdPartyCommission);
         expect(task.completed).to.be.true;
         expect(task.thirdParty.approved).to.be.true;
