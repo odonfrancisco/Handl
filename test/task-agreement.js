@@ -133,15 +133,8 @@ describe("TaskAgreement", () => {
         await taskAgreement.connect(consumer)
             .addEvidence(taskIds[0], evidence2);
         task = await taskAgreement.getTask(taskIds[0]);
-        expect(task.provider.evidence.length).to.equal(2); 
-        expect(task.provider.evidence[1]).to.equal(evidence2);
-
-        // incorrect time to check this. should be checked on task.DISPUTE.THIRDPARTY
-        await taskAgreement.connect(thirdParty)
-            .addEvidence(taskIds[0], "yeeyee");
-        task = await taskAgreement.getTask(taskIds[0]);
-        expect(task.provider.evidence.length).to.equal(3); 
-        expect(task.provider.evidence[1]).to.equal("yeeyee");
+        expect(task.consumer.evidence.length).to.equal(1); 
+        expect(task.consumer.evidence[0]).to.equal(evidence2);
     })
 
     it("Should NOT add evidence if string parameter empty", async () => {
@@ -320,6 +313,27 @@ describe("TaskAgreement", () => {
         ).to.revertedWith("A third party has already been assigned to this task")
     })
 
+    it("Should add evidence to task.DISPUTE.THIRDPARTY as any party correctly", async () => {
+        const taskId = taskIds[2];
+        await taskAgreement.connect(thirdParty)
+            .addEvidence(taskId, "yeeyee");
+        task = await taskAgreement.getTask(taskId);
+        expect(task.thirdParty.evidence.length).to.equal(1); 
+        expect(task.thirdParty.evidence[0]).to.equal("yeeyee");
+
+        await taskAgreement.connect(consumer)
+            .addEvidence(taskId, "yeeyee");
+        task = await taskAgreement.getTask(taskId);
+        expect(task.consumer.evidence.length).to.equal(1); 
+        expect(task.consumer.evidence[0]).to.equal("yeeyee");
+
+        await taskAgreement.connect(provider)
+            .addEvidence(taskId, "yeeyee");
+        task = await taskAgreement.getTask(taskId);
+        expect(task.provider.evidence.length).to.equal(1); 
+        expect(task.provider.evidence[0]).to.equal("yeeyee");
+    })
+
     /* if i were to include a voting feature instead of just one thirdParty, 
      would need another test to test that it's not assigning same third party twice */
     
@@ -351,7 +365,7 @@ describe("TaskAgreement", () => {
         const taskId = taskIds[4];
         const providerBalanceBefore = await provider.getBalance();
         const thirdPartyBalanceBefore = await thirdParty.getBalance();
-        await (await taskAgreement
+        const tx = await (await taskAgreement
             .connect(thirdParty)
             .approveTask(taskId)).wait();
         const task = await taskAgreement.getTask(taskId);
@@ -359,9 +373,14 @@ describe("TaskAgreement", () => {
         const providerBalanceDelta = providerBalanceAfter.sub(providerBalanceBefore);
         const thirdPartyBalanceAfter = await thirdParty.getBalance();
         const thirdPartyBalanceDelta = thirdPartyBalanceAfter.sub(thirdPartyBalanceBefore);
+        const commission = await taskAgreement.commission();
+        const thirdPartyCommission = task.price.mul(commission).div(100);
+        const newTxPrice = task.price.sub(thirdPartyCommission);
+        const gasUsed = tx.effectiveGasPrice.mul(tx.gasUsed);
 
-        expect(providerBalanceDelta).to.equal(task.price);
-        // expect thirdPartyDelta to equal task.price * percentage
+        // Need to replicate this for disapproving dispute.thirdparty
+        expect(providerBalanceDelta).to.equal(newTxPrice);
+        expect(thirdPartyBalanceDelta.add(gasUsed)).to.equal(thirdPartyCommission);
         expect(task.completed).to.be.true;
         expect(task.thirdParty.approved).to.be.true;
     })
@@ -385,5 +404,4 @@ describe("TaskAgreement", () => {
                 .assignThirdParty(taskId)
         ).to.be.revertedWith("This task has already been completed")
     })
-        
 })

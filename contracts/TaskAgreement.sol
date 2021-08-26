@@ -34,6 +34,7 @@ contract TaskAgreement {
     }
 
 
+    uint constant public commission = 4;
     uint numTasks;
     uint[] disputedTasks;
     // not sure if this mapping is necessary
@@ -96,8 +97,9 @@ contract TaskAgreement {
             task.consumer.evidence.push(evidence);
         } else if(msg.sender == task.provider.to) {
             task.provider.evidence.push(evidence);
+        } else if(msg.sender == task.thirdParty.to) {
+            task.thirdParty.evidence.push(evidence);
         }
-        // task.thirdParty should be able to add evidence as well
     }
 
     function approveTask(
@@ -106,7 +108,6 @@ contract TaskAgreement {
     validTaskId(taskId) notCompleted(taskId) 
     isValidUser(taskId) requireThirdParty(taskId) {
         Task storage task = tasks[taskId];
-        // I think i'm also supposed to handle different dispute settings? not sure
         if(msg.sender == task.consumer.to) {
             require(task.provider.approved,
                 "Provider must approve task before you can approve eth transfer");
@@ -125,11 +126,15 @@ contract TaskAgreement {
             task.provider.approved = true;
         }
         if(task.dispute == DisputeStage.ThirdParty){
-            /* need to incorporate the commission percentage 
-            that thirdParty receives */
-            task.provider.to.transfer(task.price);
+            uint thirdPartyCommission = task.price * commission / 100;
+            uint newTxPrice = task.price - thirdPartyCommission;
+
+            task.provider.to.transfer(newTxPrice);
+            task.thirdParty.to.transfer(thirdPartyCommission);
+
             task.thirdParty.approved = true;
             task.completed = true;
+            removeFromDisapproved(taskId);
         }
     }
 
@@ -143,6 +148,9 @@ contract TaskAgreement {
             require(task.provider.approved,
                 "Provider must approve task on their end before you can open a dispute");
         }
+        /* would like to place if(msg.sender == task.provider) out here
+        but would want to end function execution inside of it. not sure 
+        how to handle */
         // Is there a better way to structure all this without the nested ifs?
         if(task.dispute == DisputeStage.None) {
             if(msg.sender == task.consumer.to) {
@@ -168,7 +176,7 @@ contract TaskAgreement {
         } else if(task.dispute == DisputeStage.ThirdParty) {
             task.consumer.to.transfer(task.price);
             task.completed = true;
-            // remove task from disputedTasks.array
+            removeFromDisapproved(taskId);
         }
 
     }
@@ -185,7 +193,24 @@ contract TaskAgreement {
         User memory thirdParty;
         thirdParty.to = payable(msg.sender);
         task.thirdParty = thirdParty;
-    } 
+    }
+
+    function removeFromDisapproved(uint taskId) internal {
+        uint taskIndex;
+        for(uint i = 0; i < disputedTasks.length; i++){
+            if(disputedTasks[i] == taskId){
+                taskIndex = i;
+                break;
+            }
+        }
+        for(uint i = taskIndex; i < disputedTasks.length; i++){
+            if(i == disputedTasks.length - 1){
+                disputedTasks.pop();
+                break;
+            }
+            disputedTasks[i] = disputedTasks[i+1];
+        }
+    }
     
 
     modifier validTaskId(uint taskId) {
