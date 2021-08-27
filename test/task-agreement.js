@@ -9,7 +9,7 @@ const dispute = {
     ThirdParty: 2
 }
 
-let taskDescriptions = ["Test Task", "Test 2", "Test 3", "Test 4", "Test 5", "Test 6"];
+let taskDescriptions = ["Test Task", "Test 2", "Test 3", "Test 4", "Test 5", "Test 6", "Test 7"];
 let providerEvidence = [
     "https://www.acutaboveexteriors.com/wp-content/uploads/2020/05/file-3.jpg",
     "https://www.sempersolaris.com/wp-content/uploads/2018/08/roof-1-760x340.jpg"
@@ -18,7 +18,8 @@ let consumerEvidence = [
     "http://www.homebyhomeexteriors.com/wp-content/uploads/2014/04/photo-5.jpg",
     "http://gjkeller.com/wp-content/uploads/2017/05/when-roofing-goes-wrong-1.jpg"
 ];
-let prices = [35, 49, 43, 26, 13, 7];
+let prices = [35, 49, 43, 26, 13, 7, 8];
+const expirationTimes = [3600, 3600, 3600, 3600, 3600, 3600, 15]
 const reducer = (accumulator, currentValue) => accumulator + currentValue;
 
 /* I'm testing a singular task throughout separate test
@@ -43,9 +44,13 @@ describe("TaskAgreement", () => {
         for(let i = 0; i < prices.length; i++){
             const createTaskTx = await 
                 (await taskAgreement
-                .connect(consumer)
-                .createTask(provider.address, taskDescriptions[i], {value: parseEther(prices[i].toString())})
-                ).wait();
+                    .connect(consumer)
+                    .createTask(
+                        provider.address, 
+                        taskDescriptions[i], 
+                        expirationTimes[i],
+                        {value: parseEther(prices[i].toString())}
+                    )).wait();
             const emittedEvent = createTaskTx.events[0].args;
             const emittedTask = emittedEvent.task;
             taskIds.push(emittedEvent.id);
@@ -109,21 +114,51 @@ describe("TaskAgreement", () => {
             .assignThirdParty(taskId)).wait()
     })
 
+    it("Should NOT expire task before set time", async () => {
+        const taskId = taskIds[6];
+        await (await taskAgreement.connect(consumer)
+            .expireTask(taskId)).wait();
+        const task = await taskAgreement.getTask(taskId);
+        expect(task.completed).to.be.false;
+    })
+
+    it("Should expire task after set time", async () => {
+        const taskId = taskIds[6];
+        await Promise.all([
+            new Promise(resolve => setTimeout(resolve, 16000))
+        ])
+        const consumerBalanceBefore = await consumer.getBalance();
+        const tx = await (await taskAgreement.connect(consumer)
+            .expireTask(taskId)).wait();
+        const task = await taskAgreement.getTask(taskId);
+        const consumerBalanceAfter = await consumer.getBalance();
+        const balanceDelta = consumerBalanceAfter.sub(consumerBalanceBefore);
+        const gasUsed = tx.effectiveGasPrice.mul(tx.gasUsed);
+        expect(task.completed).to.be.true;
+        expect(balanceDelta).to.equal(task.price.sub(gasUsed));
+    })
+
     it("Should NOT create task if description not valid length", async () => {
         await expect(
-            taskAgreement.createTask(provider.address, "", {value: 34})
+            taskAgreement.createTask(provider.address, "", 15, {value: parseEther('35')})
         ).to.be.revertedWith("String argument must be of valid length")
     })
 
     it("Should NOT create task if no value is sent", async () => {
         await expect(
-            taskAgreement.createTask(provider.address, taskDescriptions[0])
+            taskAgreement.createTask(provider.address, taskDescriptions[0], 15)
         ).to.be.revertedWith("Must send ether to execute function")
+    })
+
+    it("Should NOT create task if no expirationdate is passed", async () => {
+        await expect(
+            taskAgreement.createTask(provider.address, taskDescriptions[0], 0, {value: parseEther('35')})
+        ).to.be.revertedWith("Must pass a valid expiration date")
     })
 
     it("Should add funds to task correctly", async () => {
         const taskId = taskIds[2];
-        let task = await taskAgreement.getTask(taskId);
+        let task = (await taskAgreement.getTask(taskId));
         const prevTaskPrice = task.price;
         await (await taskAgreement.connect(consumer)
             .addFunds(taskId, {value: parseEther('12')})).wait();
