@@ -7,6 +7,7 @@ export const Web3Context = React.createContext();
 export const Web3Provider = ({children}) => {
     const [web3, setWeb3] = useState(undefined);
     const [account, setAccount] = useState(undefined);
+    const [signer, setSigner] = useState(undefined);
     const [contract, setContract] = useState(undefined);
 
     const ethereum = window.ethereum;
@@ -50,6 +51,8 @@ export const Web3Provider = ({children}) => {
         setWeb3,
         account,
         setAccount,
+        signer,
+        setSigner,
         contract,
         setContract
     }

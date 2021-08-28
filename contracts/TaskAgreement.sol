@@ -3,6 +3,9 @@ pragma solidity ^0.8.0;
 
 import "hardhat/console.sol";
 
+// need to add function to addTime to task
+// need to prevent thirdparty from being either provider or consumer
+
 contract TaskAgreement {
     event TaskCreated (
         uint id,
