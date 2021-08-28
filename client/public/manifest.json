@@ -1,0 +1,18 @@
+{
+  "short_name": "Handl",
+  "name": "Handl",
+  "icons": [
+    {
+      "src": "handshake.ico",
+      "sizes": "222x227",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "handshake.png",
+      "type": "image/png",
+      "sizes": "222x227"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone"
+}

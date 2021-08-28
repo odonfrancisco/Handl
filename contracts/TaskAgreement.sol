@@ -40,6 +40,10 @@ contract TaskAgreement {
     mapping(address => uint[]) userTasks;
     mapping(uint => Task) tasks;
 
+    /* need to think about how i will allow for time extensions.
+    whether i extend the expiration date when dispute.internal, or
+    allow consumer to increase the expirationtime at their discretion */ 
+
     modifier validTaskId(uint taskId) {
         require(taskId < numTasks, "Must pass a valid task ID");
         _;
