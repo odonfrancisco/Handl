@@ -10,12 +10,12 @@ import { Web3Context } from './components/Web3Context';
 import NavBar from './components/NavBar';
 import TaskCreate from './components/task/TaskCreate';
 import TaskList from './components/task/TaskList';
+import TaskDetails from './components/task/TaskDetails';
 
 function App() {
   const [redirect, setRedirect] = useState();
   const {
     provider, 
-    account, 
     contract,
     parseEther
   } = useContext(Web3Context);
@@ -76,7 +76,7 @@ function App() {
               Disputed Tasks
             </Route>
             <Route exact path="/tasks/:id">
-              Task Details Component
+              <TaskDetails/>
             </Route>
           </Switch>
         </Container>
