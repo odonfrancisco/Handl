@@ -1,62 +1,51 @@
 import React, { useState, useEffect } from 'react';
-import artifact from '../contracts/contracts/TaskAgreement.sol/TaskAgreement.json';
-import ethers from 'ethers';
+import { ethers } from 'ethers';
 
 export const Web3Context = React.createContext();
 
 export const Web3Provider = ({children}) => {
-    const [web3, setWeb3] = useState(undefined);
+    const [provider, setProvider] = useState(undefined);
     const [account, setAccount] = useState(undefined);
-    const [signer, setSigner] = useState(undefined);
     const [contract, setContract] = useState(undefined);
 
     const ethereum = window.ethereum;
 
     useEffect(() => {
-        if(web3) {
-            enableContract();
-        }
-    }, [web3]);
-
-    useEffect(() => {
-        ethereum.on('chainChanged', handleChainChanged);
-        return () => ethereum.removeListener('chainChanged', handleChainChanged);
-    }, []);
-
-    const handleChainChanged = () => {
-        window.location.reload();
-    }
-
-    useEffect(() => {
-        if(web3) {
+        if(provider && contract) {
             ethereum.on('accountsChanged', handleAccountsChanged);
-            return () => ethereum.removeListener('accountsChanged', handleAccountsChanged)
+            return () => ethereum.removeListener('accountsChanged', handleAccountsChanged);
         }
     });
 
     const handleAccountsChanged = accounts => {
-        setAccount(accounts[0]);
+        window.location.reload();
+        // setContract(contract.connect(provider.getSigner(accounts[0])))
+        // setAccount(accounts[0]);
     }
+    
+    useEffect(() => {
+        ethereum.on('chainChanged', handleChainChanged);
+        return () => 
+            ethereum.removeListener('chainChanged', handleChainChanged);
+    }, []);
 
-    const enableContract = async () => {
-        try {
-            // get contract using ethers
-        } catch(err) {
-            console.error(err);
-        }
+    const handleChainChanged = chainId => {
+        window.location.reload();
     }
-
+    
     const contextValues = {
-        web3,
-        setWeb3,
+        ethers,
+        parseEther: ethers.utils.parseEther,
+        formatEther: ethers.utils.formatEther,
+        isValidAddress: ethers.utils.isAddress,
+        provider,
+        setProvider,
         account,
         setAccount,
-        signer,
-        setSigner,
         contract,
         setContract
     }
-    
+
     return (
         <Web3Context.Provider
             value={contextValues}

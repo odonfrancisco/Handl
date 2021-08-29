@@ -3,6 +3,10 @@ pragma solidity ^0.8.0;
 
 import "hardhat/console.sol";
 
+// need to ensure that provider != consumer
+// need to test for getUserTasks();
+// need to change disputedTasks to store taskRef instead of ID
+
 contract TaskAgreement {
     event TaskCreated (
         uint id,
@@ -28,6 +32,11 @@ contract TaskAgreement {
         uint expiration;
     }
 
+    struct TaskRef {
+        uint id;
+        string description;
+    }
+
     enum DisputeStage {
         None,
         Internal,
@@ -37,7 +46,7 @@ contract TaskAgreement {
     uint public commission = 4;
     uint numTasks;
     uint[] disputedTasks;
-    mapping(address => uint[]) userTasks;
+    mapping(address => TaskRef[]) userTasks;
     mapping(uint => Task) tasks;
 
     modifier validTaskId(uint taskId) {
@@ -52,7 +61,7 @@ contract TaskAgreement {
     }
 
     /* I actually combined this modifier with validExpirationTime() but 
-    decided against that in order to have more concise error messages */
+    decided against that in order to have more consice error messages */
     modifier validEthQuantity() {
         require(msg.value > 0,
             "Must send ether to execute function");
@@ -95,8 +104,8 @@ contract TaskAgreement {
         return requestedTask;
     }
 
-    function getUserTasks(address userAddress) external view returns(uint[] memory) {
-        uint[] memory usersTasks = userTasks[userAddress];
+    function getUserTasks() external view returns(TaskRef[] memory) {
+        TaskRef[] memory usersTasks = userTasks[msg.sender];
         return usersTasks;
     }
 
@@ -171,9 +180,13 @@ contract TaskAgreement {
         task.dispute = DisputeStage.None;
         task.expiration = block.timestamp + expiresIn;
 
+        TaskRef memory taskRef;
+        taskRef.id = task.id;
+        taskRef.description = task.description;
+
         tasks[numTasks] = task;
-        userTasks[providerAddress].push(task.id);
-        userTasks[msg.sender].push(task.id);
+        userTasks[providerAddress].push(taskRef);
+        userTasks[msg.sender].push(taskRef);
 
         emit TaskCreated(numTasks, task, tasks[numTasks].id == numTasks);
         numTasks++; 

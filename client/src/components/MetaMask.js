@@ -1,9 +1,10 @@
-import { ethers } from 'ethers';
 import { useContext, useEffect } from 'react';
 import { Web3Context } from './Web3Context';
+import contractArtifact from '../contracts/contracts/TaskAgreement.sol/TaskAgreement.json';
+
 
 export default function MetaMask() {
-    const { web3, setWeb3, setAccount, setSigner } = useContext(Web3Context);
+    const { setProvider, setAccount, setContract, ethers } = useContext(Web3Context);
 
     useEffect(() => {
         const init = async () => {
@@ -16,9 +17,7 @@ export default function MetaMask() {
                 console.error(err);
             }
             if(address) {
-                setAccount(address);
-                setSigner(signer);
-                setWeb3(provider);
+                enableEth();
             }
         }
         init();
@@ -28,14 +27,53 @@ export default function MetaMask() {
         try {
             if(window.ethereum) {
                 const provider = new ethers.providers.Web3Provider(window.ethereum);
-                const signer = provider.getSigner();
-                const address = await signer.getAddress();
-                setAccount(address);
-                setSigner(signer);
-                setWeb3(provider);
+                const [account] = await window.ethereum.request({
+                    method: 'eth_requestAccounts'
+                });
+                const chainId = await window.ethereum.request({
+                    method: 'eth_chainId'
+                })
+                let contractAddress;
+
+				// Hardhat Local
+                // need a way to dynamically retrieve these values
+				if (chainId === '0x7a69') {
+					contractAddress = '0xCBBe2A5c3A22BE749D5DDF24e9534f98951983e2';
+
+                // Rinkeby
+				} else if (chainId === '0x4') {
+					contractAddress = '';
+
+                // Polygon Mainnet
+				} else if (chainId === '0x89') {
+					contractAddress = '';
+
+                // Polygon Testnet
+				} else if (chainId === '0x13881') {
+					contractAddress = '';
+
+                // Mainnet
+				} else if (chainId === '0x1') {
+					contractAddress = '';
+
+                // Ropsten
+				} else if (chainId === '0x3') {
+					contractAddress = '';
+				}
+                
+                const signer = provider.getSigner(account);
+                const contract = new ethers.Contract(
+                    contractAddress,
+                    contractArtifact.abi,
+                    signer
+                )
+                
+                
+                setProvider(provider);
+                setAccount(account);
+                setContract(contract);
             } else if (window.web3) {
-                setWeb3(window.web3);
-                console.log("Injected web3 detected");
+                console.log("Update your MetaMask");
             } else {
                 console.log("Please enable MetaMask");
             }

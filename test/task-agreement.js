@@ -418,12 +418,11 @@ describe("TaskAgreement", () => {
         await expect(
             taskAgreement.connect(consumer)
                 .assignThirdParty(taskId)
-        ).to.be.revertedWith("Third party can not already be connected to this task")
+        ).to.be.revertedWith("Third party can not already be connected to this task");
         await expect(
             taskAgreement.connect(provider)
                 .assignThirdParty(taskId)
-        ).to.be.revertedWith("Third party can not already be connected to this task")
-
+        ).to.be.revertedWith("Third party can not already be connected to this task");
     })
 
     it("Should assign third party to task.DISPUTE.THIRDPARTY", async () => {
