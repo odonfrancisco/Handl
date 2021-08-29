@@ -3,9 +3,6 @@ pragma solidity ^0.8.0;
 
 import "hardhat/console.sol";
 
-// need to add function to addTime to task
-// need to prevent thirdparty from being either provider or consumer
-
 contract TaskAgreement {
     event TaskCreated (
         uint id,
@@ -43,19 +40,31 @@ contract TaskAgreement {
     mapping(address => uint[]) userTasks;
     mapping(uint => Task) tasks;
 
-    /* need to think about how i will allow for time extensions.
-    whether i extend the expiration date when dispute.internal, or
-    allow consumer to increase the expirationtime at their discretion */ 
-
     modifier validTaskId(uint taskId) {
         require(taskId < numTasks, "Must pass a valid task ID");
         _;
     }
 
-    modifier notCompleted(uint taskId) {
-        require(!tasks[taskId].completed, "This task has already been completed");
+    modifier validStrLength(string memory str) {
+        require(bytes(str).length > 0, 
+            "String argument must be of valid length");
         _;
     }
+
+    /* I actually combined this modifier with validExpirationTime() but 
+    decided against that in order to have more concise error messages */
+    modifier validEthQuantity() {
+        require(msg.value > 0,
+            "Must send ether to execute function");
+        _;
+    }    
+
+    modifier validExpirationTime(uint time) {
+        require(time > 0,
+            "Must pass a valid expiration date");
+        _;
+    }
+
     // I wish there was a way to pass the result of a modifier into the function/next modifier
     modifier isValidUser(uint taskId) {
         Task memory task = tasks[taskId];
@@ -67,6 +76,11 @@ contract TaskAgreement {
         _;
     }
 
+    modifier notCompleted(uint taskId) {
+        require(!tasks[taskId].completed, "This task has already been completed");
+        _;
+    }
+
     modifier requireThirdParty(uint taskId) {
         Task memory task = tasks[taskId];
         if(task.dispute == DisputeStage.ThirdParty) {
@@ -75,18 +89,6 @@ contract TaskAgreement {
         }
         _;
     }
-
-    modifier validStrLength(string memory str) {
-        require(bytes(str).length > 0, 
-            "String argument must be of valid length");
-        _;
-    }
-
-    modifier validEthQuantity() {
-        require(msg.value > 0,
-            "Must send ether to execute function");
-        _;
-    }    
     
     function getTask(uint taskId) external view returns(Task memory) {
         Task memory requestedTask = tasks[taskId];
@@ -153,8 +155,8 @@ contract TaskAgreement {
         string memory description,
         uint expiresIn
     ) external payable
-    validEthQuantity() validStrLength(description) {
-        require(expiresIn > 0, "Must pass a valid expiration date");
+    validEthQuantity() validStrLength(description)
+    validExpirationTime(expiresIn) {
         Task memory task;
         User memory provider;
         User memory consumer;
@@ -178,12 +180,20 @@ contract TaskAgreement {
     }
 
     function addFunds(uint taskId) external payable 
-    validEthQuantity() {
+    validTaskId(taskId) validEthQuantity() {
         expireTask(taskId);
         Task storage task = tasks[taskId];
         require(msg.sender == task.consumer.to,
             "Only the consumer of this task may add funds");
         task.price = task.price + msg.value;
+    }
+
+    function addTime(uint taskId, uint time) external 
+    validTaskId(taskId) validExpirationTime(time) {
+        Task storage task = tasks[taskId];
+        require(msg.sender == task.consumer.to,
+            "Only the consumer of this task may add expiration time");
+        task.expiration = task.expiration + time;
     }
 
     // Should i add a limit to how much evidence one party can provide?
@@ -281,6 +291,8 @@ contract TaskAgreement {
         Task storage task = tasks[taskId];
         require(task.thirdParty.to == address(0), 
             "A third party has already been assigned to this task");
+        require(msg.sender != task.consumer.to && msg.sender != task.provider.to,
+            "Third party can not already be connected to this task");
         require(task.dispute == DisputeStage.ThirdParty,
             "Cannot assign a third party to this task until internally decided");
         User memory thirdParty;

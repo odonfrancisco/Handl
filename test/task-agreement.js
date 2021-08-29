@@ -122,21 +122,21 @@ describe("TaskAgreement", () => {
         expect(task.completed).to.be.false;
     })
 
-    it("Should expire task after set time", async () => {
-        const taskId = taskIds[6];
-        await Promise.all([
-            new Promise(resolve => setTimeout(resolve, 16000))
-        ])
-        const consumerBalanceBefore = await consumer.getBalance();
-        const tx = await (await taskAgreement.connect(consumer)
-            .expireTask(taskId)).wait();
-        const task = await taskAgreement.getTask(taskId);
-        const consumerBalanceAfter = await consumer.getBalance();
-        const balanceDelta = consumerBalanceAfter.sub(consumerBalanceBefore);
-        const gasUsed = tx.effectiveGasPrice.mul(tx.gasUsed);
-        expect(task.completed).to.be.true;
-        expect(balanceDelta).to.equal(task.price.sub(gasUsed));
-    })
+    // it("Should expire task after set time", async () => {
+    //     const taskId = taskIds[6];
+    //     await Promise.all([
+    //         new Promise(resolve => setTimeout(resolve, 16000))
+    //     ])
+    //     const consumerBalanceBefore = await consumer.getBalance();
+    //     const tx = await (await taskAgreement.connect(consumer)
+    //         .expireTask(taskId)).wait();
+    //     const task = await taskAgreement.getTask(taskId);
+    //     const consumerBalanceAfter = await consumer.getBalance();
+    //     const balanceDelta = consumerBalanceAfter.sub(consumerBalanceBefore);
+    //     const gasUsed = tx.effectiveGasPrice.mul(tx.gasUsed);
+    //     expect(task.completed).to.be.true;
+    //     expect(balanceDelta).to.equal(task.price.sub(gasUsed));
+    // })
 
     it("Should NOT create task if description not valid length", async () => {
         await expect(
@@ -185,6 +185,56 @@ describe("TaskAgreement", () => {
             taskAgreement.connect(consumer)
                 .addFunds(taskId)
         ).to.be.revertedWith("Must send ether to execute function")
+    })
+    
+    it("Should NOT add funds if invalid taskId passed", async () => {
+        await expect(
+            taskAgreement.connect(consumer)
+                .addFunds(999, {value: parseEther('12')})
+        ).to.be.revertedWith("Must pass a valid task ID")
+    })
+
+    it("Should add time correctly", async () => {
+        const taskId = taskIds[0];
+        const timeToAdd = ethers.BigNumber.from(1020);
+        let task = await taskAgreement.getTask(taskId);
+        const initialExpiration = task.expiration;
+        await (await taskAgreement.connect(consumer)
+            .addTime(taskId, timeToAdd)).wait();
+        task = await taskAgreement.getTask(taskId);
+        const newExpiration = task.expiration;
+        expect(newExpiration).to.equal(initialExpiration.add(timeToAdd));
+    })
+
+    it("Should NOT add time if invalid time parameter", async () => {
+        const taskId = taskIds[0];
+        await expect(
+            taskAgreement.connect(consumer)
+                .addTime(taskId, 0)
+        ).to.be.revertedWith("Must pass a valid expiration date")
+        await expect(
+            taskAgreement.connect(consumer)
+                .addTime(taskId, -2)
+        ).to.be.reverted;
+    })
+
+    it("Should NOT add time if invalid taskId passed", async () => {
+        await expect(
+            taskAgreement.connect(consumer)
+                .addTime(999, 42)
+        ).to.be.revertedWith("Must pass a valid task ID");
+    })
+
+    it("Should NOT add time if not consumer", async () => {
+        const taskId = taskIds[0];
+        await expect(
+            taskAgreement.connect(provider)
+                .addTime(taskId, 55)
+        ).to.be.revertedWith("Only the consumer of this task may add expiration time");
+        await expect(
+            taskAgreement.connect(thirdParty)
+                .addTime(taskId, 55)
+        ).to.be.revertedWith("Only the consumer of this task may add expiration time");
     })
 
     it("Should add evidence to task correctly", async () => {
@@ -361,6 +411,19 @@ describe("TaskAgreement", () => {
             taskAgreement.connect(thirdParty)
                 .assignThirdParty(9813)
         ).to.revertedWith("Must pass a valid task ID");
+    })
+
+    it("Should NOT assign third party if thirdParty == consumer || provider", async () => {
+        const taskId = taskIds[2];
+        await expect(
+            taskAgreement.connect(consumer)
+                .assignThirdParty(taskId)
+        ).to.be.revertedWith("Third party can not already be connected to this task")
+        await expect(
+            taskAgreement.connect(provider)
+                .assignThirdParty(taskId)
+        ).to.be.revertedWith("Third party can not already be connected to this task")
+
     })
 
     it("Should assign third party to task.DISPUTE.THIRDPARTY", async () => {
