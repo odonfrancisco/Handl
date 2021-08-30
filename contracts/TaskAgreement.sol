@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import "hardhat/console.sol";
 
 // need to ensure that provider != consumer
+// need to ensure that neither provider NOR consumer NOR third party can be address.this
 // need to test for getUserTasks();
 // need to change disputedTasks to store taskRef instead of ID
 
@@ -150,13 +151,16 @@ contract TaskAgreement {
         task.completed = true;
     }
 
-    function expireTask(uint taskId) public {
+    function expireTask(uint taskId) public returns(bool){
         Task storage task = tasks[taskId];
+        bool isExpired = false;
         if(!task.provider.approved && task.dispute != DisputeStage.ThirdParty) {
             if(task.expiration <= block.timestamp) {
                 completeTask(task, task.consumer.to);
+                isExpired = true;
             }
         }
+        return isExpired;
     }
 
     function createTask(
@@ -193,20 +197,27 @@ contract TaskAgreement {
     }
 
     function addFunds(uint taskId) external payable 
-    validTaskId(taskId) validEthQuantity() {
-        expireTask(taskId);
+    validTaskId(taskId) validEthQuantity() 
+    returns(bool) {
+        bool isExpired = expireTask(taskId);
+        if(isExpired) return false;
         Task storage task = tasks[taskId];
         require(msg.sender == task.consumer.to,
             "Only the consumer of this task may add funds");
         task.price = task.price + msg.value;
+        return true;
     }
 
     function addTime(uint taskId, uint time) external 
-    validTaskId(taskId) validExpirationTime(time) {
+    validTaskId(taskId) validExpirationTime(time)
+    returns(bool) {
+        bool isExpired = expireTask(taskId);
+        if(isExpired) return false;
         Task storage task = tasks[taskId];
         require(msg.sender == task.consumer.to,
             "Only the consumer of this task may add expiration time");
         task.expiration = task.expiration + time;
+        return true;
     }
 
     // Should i add a limit to how much evidence one party can provide?
@@ -215,8 +226,10 @@ contract TaskAgreement {
         string calldata evidence
     ) external 
     validTaskId(taskId) notCompleted(taskId) 
-    isValidUser(taskId) validStrLength(evidence) {
-        expireTask(taskId);
+    isValidUser(taskId) validStrLength(evidence)
+    returns(bool) {
+        bool isExpired = expireTask(taskId);
+        if(isExpired) return false;
         Task storage task = tasks[taskId];
         if(msg.sender == task.consumer.to) {
             task.consumer.evidence.push(evidence);
@@ -225,14 +238,17 @@ contract TaskAgreement {
         } else if(msg.sender == task.thirdParty.to) {
             task.thirdParty.evidence.push(evidence);
         }
+        return true;
     }
 
     function approveTask(
         uint taskId
     ) external 
     validTaskId(taskId) notCompleted(taskId) 
-    isValidUser(taskId) requireThirdParty(taskId) {
-        expireTask(taskId);
+    isValidUser(taskId) requireThirdParty(taskId) 
+    returns(bool) {
+        bool isExpired = expireTask(taskId);
+        if(isExpired) return false;
         Task storage task = tasks[taskId];
         if(msg.sender == task.consumer.to) {
             require(task.provider.approved,
@@ -254,14 +270,17 @@ contract TaskAgreement {
             task.thirdParty.approved = true;
             completeTask(task, task.provider.to);
         }
+        return true;
     }
 
     function disapproveTask(
         uint taskId
     ) external 
     validTaskId(taskId) notCompleted(taskId) 
-    isValidUser(taskId) requireThirdParty(taskId) {
-        expireTask(taskId);
+    isValidUser(taskId) requireThirdParty(taskId)
+    returns(bool) {
+        bool isExpired = expireTask(taskId);
+        if(isExpired) return false;
         Task storage task = tasks[taskId];
         if(msg.sender == task.consumer.to) {
             require(task.provider.approved,
@@ -293,14 +312,16 @@ contract TaskAgreement {
         } else if(task.dispute == DisputeStage.ThirdParty) {
             completeTask(task, task.consumer.to);
         }
-
+        return true;
     }
 
     function assignThirdParty(
         uint taskId
     ) external 
-    validTaskId(taskId) notCompleted(taskId) {
-        expireTask(taskId);
+    validTaskId(taskId) notCompleted(taskId)
+    returns(bool) {
+        bool isExpired = expireTask(taskId);
+        if(isExpired) return false;
         Task storage task = tasks[taskId];
         require(task.thirdParty.to == address(0), 
             "A third party has already been assigned to this task");
@@ -311,5 +332,8 @@ contract TaskAgreement {
         User memory thirdParty;
         thirdParty.to = payable(msg.sender);
         task.thirdParty = thirdParty;
+        /* do return statements use more Gas? if so, i'd 
+        try and find a different solution */
+        return true;
     }
 }

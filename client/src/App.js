@@ -5,12 +5,12 @@ import Box from '@material-ui/core/Box';
 import React, { useState, useContext } from 'react';
 import { Switch, Route, Redirect } from 'react-router-dom';
 // Components
-import MetaMask from './components/MetaMask';
-import { Web3Context } from './components/Web3Context';
+import MetaMask from './components/utils/MetaMask';
+import { Web3Context } from './components/utils/Web3Context';
 import NavBar from './components/NavBar';
 import TaskCreate from './components/task/TaskCreate';
 import TaskList from './components/task/TaskList';
-import TaskDetails from './components/task/TaskDetails';
+import TaskDetails from './components/task/details/TaskDetails';
 
 function App() {
   const [redirect, setRedirect] = useState();

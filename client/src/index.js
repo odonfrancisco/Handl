@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import './styles/index.css';
 import App from './App';
-import { Web3Provider } from "./components/Web3Context";
+import { Web3Provider } from "./components/utils/Web3Context";
 import { BrowserRouter as Router } from 'react-router-dom';
 
 ReactDOM.render(

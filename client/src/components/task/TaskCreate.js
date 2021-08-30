@@ -7,7 +7,7 @@ import Button from '@material-ui/core/Button';
 import SendIcon from '@material-ui/icons/Send';
 
 import React, { useState, useEffect, useContext } from 'react'
-import { Web3Context } from '../Web3Context';
+import { Web3Context } from '../utils/Web3Context';
 
 // timeframe enum
 const Timeframe = {
@@ -47,11 +47,13 @@ export default function TaskCreate({ handleCreateTask }) {
                     return;
             }
             const expirationTime = expiresIn * Timeframe[timeFrame];
+
             if(!(await handleCreateTask(
                     description, 
                     providerAddress,
                     expirationTime,
-                    amount ))){
+                    amount ))
+            ){
                 setButtonDisabled(false);
             }
         }
