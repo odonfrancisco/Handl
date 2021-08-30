@@ -139,7 +139,7 @@ export default function TaskCreate({ handleCreateTask }) {
                             placeholder="ETH Amount"
                             onChange={e => {
                                 let value = e.target.value;
-                                if(Number.isNaN(Number.parseFloat(value)) && value.length > 0) {
+                                if(Number.isNaN(Number.parseFloat(value)) && value.length > 0 && value !== '.') {
                                     generateErrorMessage("Must pass a valid ETH amount");
                                 } else {
                                     setAmount(value)

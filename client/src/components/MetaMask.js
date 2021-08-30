@@ -38,28 +38,11 @@ export default function MetaMask() {
 				// Hardhat Local
                 // need a way to dynamically retrieve these values
 				if (chainId === '0x7a69') {
-					contractAddress = '0xCBBe2A5c3A22BE749D5DDF24e9534f98951983e2';
-
+					contractAddress = '0x5FbDB2315678afecb367f032d93F642f64180aa3';
                 // Rinkeby
 				} else if (chainId === '0x4') {
 					contractAddress = '';
-
-                // Polygon Mainnet
-				} else if (chainId === '0x89') {
-					contractAddress = '';
-
-                // Polygon Testnet
-				} else if (chainId === '0x13881') {
-					contractAddress = '';
-
-                // Mainnet
-				} else if (chainId === '0x1') {
-					contractAddress = '';
-
-                // Ropsten
-				} else if (chainId === '0x3') {
-					contractAddress = '';
-				}
+                }
                 
                 const signer = provider.getSigner(account);
                 const contract = new ethers.Contract(
@@ -67,8 +50,6 @@ export default function MetaMask() {
                     contractArtifact.abi,
                     signer
                 )
-                
-                
                 setProvider(provider);
                 setAccount(account);
                 setContract(contract);
