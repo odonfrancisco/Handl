@@ -7,8 +7,8 @@ import React, { useState, useEffect, useContext } from 'react'
 import { useParams } from 'react-router'
 // Components
 import { 
-    ConsumerButtons, 
-    ConsumerInputs,
+    ClientButtons, 
+    ClientInputs,
     ApproveButtons, 
     EvidenceForm, 
     EvidenceList } from './DetailComponents';
@@ -20,58 +20,110 @@ const DisputeStages = {
     2: 'Third Party Involvement'
 }
 
-const Consumerinput = {
+const Clientinput = {
     none: 0,
     funds: 1,
     time: 2
 }
 
 // need to redirect if not participant (expect if in dispute.thirdParty)
+// need to show something completely different is task.completed
+// need to add button to check if task is expired
 
 export default function TaskDetails() {
     const [task, setTask] = useState();
-    const [isConsumer, setIsConsumer] = useState(false);
+    const [isClient, setIsClient] = useState(false);
     const [isParticipant, setIsParticipant] = useState(false);
-    const [consumerInputChoice, setConsumerInputChoice] = useState(Consumerinput.none);
-    const [approveDisabled, setApproveDisabled] = useState(false);
-    const { contract, formatEther, account, ethers } = useContext(Web3Context);
+    const [clientInputChoice, setClientInputChoice] = useState(Clientinput.none);
+    const { contract, formatEther, account, parseEther } = useContext(Web3Context);
     const taskId = useParams().id;
 
     useEffect(() => {
         const init = async () => {
             const task = await contract.getTask(taskId);
-            const consumerAddress = task.consumer.to.toLowerCase();
+            setTask(task);
+
+            const clientAddress = task.consumer.to.toLowerCase();
             const providerAddress = task.provider.to.toLowerCase();
             const thirdPartyAddress = task.thirdParty.to.toLowerCase();
             const currentAccount = account.toLowerCase();
+            // need a better way to settle whether user is participant or not
 
-            setTask(task);
-            if(currentAccount === consumerAddress) {
-                setIsConsumer(true);
+            if(currentAccount === clientAddress) {
+                setIsClient(true);                
                 setIsParticipant(true);
-                task.provider.approved 
-                    ? setApproveDisabled(false) 
-                    : setApproveDisabled(true);
-            } else if(currentAccount === providerAddress) {
-                setIsParticipant(true);
-                task.provider.approved 
-                    ? setApproveDisabled(true) 
-                    : setApproveDisabled(false);
-            } else if(DisputeStages[task.dispute] === "Third Party Involvement") {
+            }
+            
+            if(DisputeStages[task.dispute] === 'Third Party Involvement') {
                 if(currentAccount == thirdPartyAddress) setIsParticipant(true); 
-                currentAccount === thirdPartyAddress && !task.thirdParty.approved 
-                    ? setApproveDisabled(false)
-                    : setApproveDisabled(true);
+                // currentAccount === thirdPartyAddress && !task.thirdParty.approved 
+                //     ? setApproveDisabled(false)
+                //     : setApproveDisabled(true);
+                /* if(currentAccount === clientAddress) {
+                    setIsClient(true);                
+                    setIsParticipant(true);
+                } else  */if(currentAccount === providerAddress) {
+                    setIsParticipant(true);
+                } else {
+                    setIsParticipant(false);
+                }        
             } else {
-                setIsParticipant(false);
-                setApproveDisabled(true);
+                if(currentAccount === clientAddress) {
+                    // setIsClient(true);
+                    // setIsParticipant(true);
+                    // task.provider.approved 
+                    //     ? setApproveDisabled(false) 
+                    //     : setApproveDisabled(true);
+                } else if(currentAccount === providerAddress) {
+                    setIsParticipant(true);
+                    // task.provider.approved 
+                    //     ? setApproveDisabled(true) 
+                    //     : setApproveDisabled(false);
+                } else {
+                    setIsParticipant(false);
+                    // setApproveDisabled(true);
+                }    
             }
         }
         init();
     }, [])
+    
 
-    const handleConsumerInputChoice = choice => {
-        setConsumerInputChoice(Consumerinput[choice]);
+    const handleClientInputChoice = choice => {
+        if(clientInputChoice === Clientinput[choice]) {
+            setClientInputChoice(Clientinput.none);
+            return;
+        }
+        setClientInputChoice(Clientinput[choice]);
+    }
+
+    const handleTaskDecision = async approve => {
+        let success = false;
+        // setApproveDisabled(true);
+        if(approve) {
+            const tx = await contract.approveTask(task.id);
+            await tx.wait().then(async () => {
+                const updatedTask = await contract.getTask(task.id);
+                setTask(updatedTask);
+                success = true;
+            }).catch(err => {
+                console.error(err);
+                success = false;
+                // setApproveDisabled(false);
+            })
+        } else {
+            const tx = await contract.disapproveTask(task.id);
+            await tx.wait().then(async () => {
+                const updatedTask = await contract.getTask(task.id);
+                setTask(updatedTask);
+                success = true;
+            }).catch(err => {
+                console.error(err);
+                success = false;
+                // setApproveDisabled(false);
+            })
+        }
+        return success;
     }
     
     const handleEvidenceAdd = async evidence => {
@@ -87,6 +139,47 @@ export default function TaskDetails() {
         });
 
         return success;
+    }
+
+    const handleAddTime = async time => {
+        const tx = await contract.addTime(task.id, time);
+        tx.wait().then(async () => {
+            const updatedTask = await contract.getTask(task.id);
+            setTask(updatedTask);
+        }).catch(err => {
+            console.error(err);
+        })        
+    }
+
+    const handleAddFunds = async amount => {
+        const tx = await contract.addFunds(task.id, {value: parseEther(amount)});
+        tx.wait().then(async () => {
+            const updatedTask = await contract.getTask(task.id);
+            setTask(updatedTask);
+        }).catch(err => {
+            console.error(err);
+        })
+    }
+
+    const approveButtonsDisabled = () => {        
+        let isDisabled = true;
+        const clientAddress = task.consumer.to.toLowerCase();
+        const providerAddress = task.provider.to.toLowerCase();
+        const thirdPartyAddress = task.thirdParty.to.toLowerCase();
+        if(account === clientAddress
+            && task.provider.approved) {
+                isDisabled = false                
+        } else if(account === providerAddress
+            && !task.provider.approved) {
+                isDisabled = false
+        }
+        if(DisputeStages[task.dispute] === 'Third Party Involvement'){
+            account === thirdPartyAddress && !task.thirdParty.approved 
+            ? isDisabled = false
+            : isDisabled = true;    
+        }
+
+        return isDisabled;
     }
 
     if(!task) return null;
@@ -108,7 +201,10 @@ export default function TaskDetails() {
                     Expiration Date: {time.toDateString()} | {time.toLocaleTimeString()}
                 </Grid>
             </Grid>
-            <Box m={4}/>
+            <Box m={2.5}>
+                {console.log('oneffect')}
+                You are the {isClient ? "Client" : "Vendor"}
+            </Box>
             <Grid container>
                 <Grid item container 
                     xs={6} 
@@ -118,16 +214,18 @@ export default function TaskDetails() {
                 >
                     {isParticipant 
                         && <ApproveButtons 
-                                approveDisabled={approveDisabled}/>}
+                                isDisabled={approveButtonsDisabled}
+                                handleInput={handleTaskDecision}/>}
                 </Grid>
                 <Grid item container 
                     xs={6} 
                     justifyContent="flex-end"
                     spacing={2}
                 >
-                    {isConsumer 
-                        && <ConsumerButtons 
-                                handleInputChoice={handleConsumerInputChoice}/>}
+                    {isClient 
+                        && <ClientButtons 
+                                handleInputChoice={handleClientInputChoice}
+                                />}
                 </Grid>
             </Grid>
             <Box m={2}/>
@@ -147,9 +245,11 @@ export default function TaskDetails() {
                     justifyContent="flex-end"
                     spacing={2}
                 >
-                    {isConsumer 
-                        && <ConsumerInputs 
-                                inputChoice={consumerInputChoice}/>}
+                    {isClient 
+                        && <ClientInputs 
+                                inputChoice={clientInputChoice}
+                                addFunds={handleAddFunds}
+                                addTime={handleAddTime}/>}
                 </Grid>
             </Grid>
             <Grid container>
