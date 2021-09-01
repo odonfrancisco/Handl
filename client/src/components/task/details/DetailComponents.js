@@ -12,6 +12,23 @@ import ImageListItem from '@material-ui/core/ImageListItem';
 // React
 import { useState, useEffect } from 'react';
 
+const DisputeStages = {
+    0: 'No Dispute',
+    1: 'Internal Dispute',
+    2: 'Third Party Involvement'
+}
+
+// timeframe enum
+const Timeframe = {
+    seconds: 1,
+    minutes: 60,
+    hours: 3600,
+    days: 86400,
+    weeks: 604800,
+    months: 2592000,
+    years: 31536000
+}
+
 export const ClientButtons = ({handleInputChoice}) => {
     return (
         <>
@@ -131,16 +148,6 @@ const AddTime = ({
     </Grid>
 )
 
-// timeframe enum
-const Timeframe = {
-    seconds: 1,
-    minutes: 60,
-    hours: 3600,
-    days: 86400,
-    weeks: 604800,
-    months: 2592000,
-    years: 31536000
-}
 export const ClientInputs = ({inputChoice, addTime, addFunds}) => {
     const [err, setErr] = useState('');        
     const [timeFrame, setTimeFrame] = useState('days');
@@ -238,6 +245,19 @@ export const ApproveButtons = ({
         </>
     )
 }
+
+export const ParticipantInfo = ({isClient, dispute}) => (
+    <Box m={2.5}>
+        You are the {isClient ? "Client" : "Vendor"}
+        <br/>
+        {/* make colorful or some shit  */}
+        {DisputeStages[dispute] === "Internal Dispute"
+            && !isClient
+            && "This is your second chance to provide " + 
+                "evidence and make a case for yourself " +
+                "before your client decides to involve a third party. " }
+    </Box>
+)
 
 /* for some reason i had to separate this component from
 being inside EvidenceForm because input would de-focus on 
@@ -338,3 +358,14 @@ export const EvidenceColumn = ({evidence, party}) => {
         </Grid>
     )
 }
+
+export const AddThirdPartyButton = ({addThirdParty}) => (
+    <button onClick={() => {
+        addThirdParty().catch(err => {
+            console.error(err);
+        })
+    }}>
+        Add yourself as a third party
+    </button>
+)
+

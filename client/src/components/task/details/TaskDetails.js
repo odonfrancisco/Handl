@@ -10,9 +10,10 @@ import {
     ClientButtons, 
     ClientInputs,
     ApproveButtons, 
+    ParticipantInfo,
     EvidenceForm, 
-    EvidenceList,
-    EvidenceColumn } from './DetailComponents';
+    EvidenceColumn,
+    AddThirdPartyButton } from './DetailComponents';
 import { Web3Context } from '../../utils/Web3Context';
 
 const DisputeStages = {
@@ -27,9 +28,14 @@ const Clientinput = {
     time: 2
 }
 
+const address0 = "0x0000000000000000000000000000000000000000";
+
 // need to redirect if not participant (expect if in dispute.thirdParty)
 // need to show something completely different is task.completed
 // need to add button to check if task is expired
+// client needs to be able to add evidence and other things while task.thirdParty
+/* need to add button to allow thirdParty to add themselves IF
+task.thirdParty.to == address(0) && task.dispute === 'thirdParty' */ 
 
 export default function TaskDetails() {
     const [task, setTask] = useState();
@@ -49,14 +55,9 @@ export default function TaskDetails() {
             const thirdPartyAddress = task.thirdParty.to.toLowerCase();
             const currentAccount = account.toLowerCase();
             // need a better way to settle whether user is participant or not
-
-            if(currentAccount === clientAddress) {
-                setIsClient(true);                
-                setIsParticipant(true);
-            }
             
             if(DisputeStages[task.dispute] === 'Third Party Involvement') {
-                if(currentAccount == thirdPartyAddress) setIsParticipant(true); 
+                if(currentAccount === thirdPartyAddress) setIsParticipant(true); 
                 // currentAccount === thirdPartyAddress && !task.thirdParty.approved 
                 //     ? setApproveDisabled(false)
                 //     : setApproveDisabled(true);
@@ -84,6 +85,10 @@ export default function TaskDetails() {
                     setIsParticipant(false);
                     // setApproveDisabled(true);
                 }    
+            }
+            if(currentAccount === clientAddress) {
+                setIsClient(true);                
+                setIsParticipant(true);
             }
         }
         init();
@@ -154,6 +159,16 @@ export default function TaskDetails() {
 
     const handleAddFunds = async amount => {
         const tx = await contract.addFunds(task.id, {value: parseEther(amount)});
+        tx.wait().then(async () => {
+            const updatedTask = await contract.getTask(task.id);
+            setTask(updatedTask);
+        }).catch(err => {
+            console.error(err);
+        })
+    }
+
+    const handleAddThirdParty = async () => {
+        const tx = await contract.assignThirdParty(task.id);
         tx.wait().then(async () => {
             const updatedTask = await contract.getTask(task.id);
             setTask(updatedTask);
@@ -236,19 +251,6 @@ export default function TaskDetails() {
 
         </>
     )
-
-    const ParticipantInfo = () => (
-        <Box m={2.5}>
-            You are the {isClient ? "Client" : "Vendor"}
-            <br/>
-            {/* make colorful or some shit  */}
-            {DisputeStages[task.dispute] === "Internal Dispute"
-                && !isClient
-                && "This is your second chance to provide " + 
-                    "evidence and make a case for yourself " +
-                    "before your client decides to involve a third party. " }
-        </Box>
-    )
     
     return (
         <div>
@@ -274,10 +276,16 @@ export default function TaskDetails() {
                 </Grid>
             </Grid>
             {isParticipant
-                && <ParticipantInfo/> }
+                && <ParticipantInfo 
+                    isClient={isClient}
+                    dispute={task.dispute}/> }
             <Grid container>
                 {isParticipant 
                     && <ParticipantAdminPanel/> }
+                {task.thirdParty.to === address0
+                    && DisputeStages[task.dispute] === "Third Party Involvement"
+                    && !isParticipant
+                    && <AddThirdPartyButton addThirdParty={handleAddThirdParty} /> }
             </Grid>
             {/* This will not be visible to anyone who didn't participate in the task */}
             <Grid container>

@@ -52,6 +52,16 @@ function App() {
     }
     return tasks;
   }
+
+  const getDisputedTasks = async () => {
+    let tasks = [];
+    try{
+      tasks = await contract.getDisputedTasks();
+    } catch(err) {
+      console.error(err);
+    }
+    return tasks;
+  }
   
   if(!provider || !contract){
     return (
@@ -76,7 +86,7 @@ function App() {
               <TaskList getTasks={getUserTasks}/>
             </Route>
             <Route exact path="/disputedTasks">
-              Disputed Tasks
+              <TaskList getTasks={getDisputedTasks}/>
             </Route>
             <Route exact path="/tasks/:id">
               <TaskDetails/>

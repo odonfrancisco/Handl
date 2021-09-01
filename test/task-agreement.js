@@ -427,10 +427,16 @@ describe("TaskAgreement", () => {
 
     it("Should assign third party to task.DISPUTE.THIRDPARTY", async () => {
         const taskId = taskIds[2];
+        let disputedTasks = await taskAgreement.getDisputedTasks();
+        let filteredTaskRefs = disputedTasks.filter(task => task.id.eq(taskId));
+        expect(filteredTaskRefs.length).to.equal(1);
         await (await taskAgreement.connect(thirdParty)
             .assignThirdParty(taskId)).wait();
         const task = await taskAgreement.getTask(taskId);
+        disputedTasks = await taskAgreement.getDisputedTasks();
+        filteredTaskRefs = disputedTasks.filter(task => task.id.eq(taskId));
         expect(task.thirdParty.to).to.equal(thirdParty.address);
+        expect(filteredTaskRefs.length).to.equal(0);
     })
 
     it("Should NOT assign third party twice to task.DISPUTE.THIRDPARTY", async () => {
@@ -469,17 +475,11 @@ describe("TaskAgreement", () => {
         const taskId = taskIds[2];
         const consumerBalanceBefore = await consumer.getBalance();
         const thirdPartyBalanceBefore = await thirdParty.getBalance();
-        let disputedTasks = await taskAgreement.getDisputedTasks();
-        let disputedTaskId = disputedTasks.filter(id => id.eq(taskId));
-        expect(disputedTaskId.length).to.equal(1);
-        expect(disputedTaskId[0]).to.equal(taskId);
         const tx = await (await taskAgreement
             .connect(thirdParty)
             .disapproveTask(taskId)).wait();
         const task = await taskAgreement.getTask(taskId);
-        disputedTasks = await taskAgreement.getDisputedTasks();
-        disputedTaskId = disputedTasks.filter(id => id.eq(taskId));
-        expect(disputedTaskId.length).to.equal(0);
+        // am supposed to be checking this once task.thirdParty is assigned
         const consumerBalanceAfter = await consumer.getBalance();
         const consumerBalanceDelta = consumerBalanceAfter.sub(consumerBalanceBefore);
         const thirdPartyBalanceAfter = await thirdParty.getBalance();
@@ -502,9 +502,6 @@ describe("TaskAgreement", () => {
             .connect(thirdParty)
             .approveTask(taskId)).wait();
         const task = await taskAgreement.getTask(taskId);
-        disputedTasks = await taskAgreement.getDisputedTasks();
-        disputedTaskId = disputedTasks.filter(id => id.eq(taskId));
-        expect(disputedTaskId.length).to.equal(0);
         const providerBalanceAfter = await provider.getBalance();
         const providerBalanceDelta = providerBalanceAfter.sub(providerBalanceBefore);
         const thirdPartyBalanceAfter = await thirdParty.getBalance();

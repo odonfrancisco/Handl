@@ -6,11 +6,11 @@ import "hardhat/console.sol";
 // ensure that provider != consumer
 // ensure that neither provider NOR consumer NOR third party can be address.this
 // test for getUserTasks();
-// change disputedTasks to store taskRef instead of ID
 // add tests for addFunds + addTime notCompleted modifier 
 // // side noat, i don't even think testing for the 
 // // modifier is necesary. already tested with all the other
 // // functions, so why these as well?
+// need to add disputedTask to thirdParty userTasks.
 
 contract TaskAgreement {
     event TaskCreated (
@@ -50,7 +50,7 @@ contract TaskAgreement {
 
     uint public commission = 4;
     uint numTasks;
-    uint[] disputedTasks;
+    TaskRef[] disputedTasks;
     mapping(address => TaskRef[]) userTasks;
     mapping(uint => Task) tasks;
 
@@ -114,16 +114,16 @@ contract TaskAgreement {
         return usersTasks;
     }
 
-    function getDisputedTasks() external view returns(uint[] memory) {
+    function getDisputedTasks() external view returns(TaskRef[] memory) {
         return disputedTasks;
     }
 
-    function removeFromDisapproved(
+    function removeFromDisputedTasks(
         uint taskId
     ) internal {
         uint taskIndex;
         for(uint i = 0; i < disputedTasks.length; i++){
-            if(disputedTasks[i] == taskId){
+            if(disputedTasks[i].id == taskId){
                 taskIndex = i;
                 break;
             }
@@ -149,8 +149,6 @@ contract TaskAgreement {
 
             to.transfer(newTxPrice);
             task.thirdParty.to.transfer(thirdPartyCommission);
-
-            removeFromDisapproved(task.id);
         }
         task.completed = true;
     }
@@ -311,7 +309,12 @@ contract TaskAgreement {
                 task.consumer.approved = false;
                 task.provider.approved = false;
                 task.dispute = DisputeStage.ThirdParty;
-                disputedTasks.push(task.id);
+
+                TaskRef memory taskRef;
+                taskRef.id = task.id;
+                taskRef.description = task.description;
+
+                disputedTasks.push(taskRef);
             } else if(msg.sender == task.provider.to) {
                 completeTask(task, task.consumer.to);
             }
@@ -338,6 +341,7 @@ contract TaskAgreement {
         User memory thirdParty;
         thirdParty.to = payable(msg.sender);
         task.thirdParty = thirdParty;
+        removeFromDisputedTasks(task.id);
         /* do return statements use more Gas? if so, i'd 
         try and find a different solution */
         return true;

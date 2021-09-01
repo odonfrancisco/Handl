@@ -15,7 +15,7 @@ export default function TaskList({ getTasks }) {
             setTasks(tasks);
         }
         init();
-    }, []);
+    }, [getTasks]);
     
     const TaskList = () => {
         if(tasks.length === 0){
