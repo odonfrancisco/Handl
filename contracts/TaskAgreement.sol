@@ -3,10 +3,14 @@ pragma solidity ^0.8.0;
 
 import "hardhat/console.sol";
 
-// need to ensure that provider != consumer
-// need to ensure that neither provider NOR consumer NOR third party can be address.this
-// need to test for getUserTasks();
-// need to change disputedTasks to store taskRef instead of ID
+// ensure that provider != consumer
+// ensure that neither provider NOR consumer NOR third party can be address.this
+// test for getUserTasks();
+// change disputedTasks to store taskRef instead of ID
+// add tests for addFunds + addTime notCompleted modifier 
+// // side noat, i don't even think testing for the 
+// // modifier is necesary. already tested with all the other
+// // functions, so why these as well?
 
 contract TaskAgreement {
     event TaskCreated (
@@ -198,6 +202,7 @@ contract TaskAgreement {
 
     function addFunds(uint taskId) external payable 
     validTaskId(taskId) validEthQuantity() 
+    notCompleted(taskId)
     returns(bool) {
         bool isExpired = expireTask(taskId);
         if(isExpired) return false;
@@ -210,6 +215,7 @@ contract TaskAgreement {
 
     function addTime(uint taskId, uint time) external 
     validTaskId(taskId) validExpirationTime(time)
+    notCompleted(taskId)
     returns(bool) {
         bool isExpired = expireTask(taskId);
         if(isExpired) return false;

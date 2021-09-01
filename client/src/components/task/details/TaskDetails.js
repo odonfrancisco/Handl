@@ -11,7 +11,8 @@ import {
     ClientInputs,
     ApproveButtons, 
     EvidenceForm, 
-    EvidenceList } from './DetailComponents';
+    EvidenceList,
+    EvidenceColumn } from './DetailComponents';
 import { Web3Context } from '../../utils/Web3Context';
 
 const DisputeStages = {
@@ -184,38 +185,19 @@ export default function TaskDetails() {
 
     if(!task) return null;
     let time = new Date(task.expiration.toString()*1000);
-    
-    return (
-        <div>
-            <Typography variant="h3">
-                {task.description}
-            </Typography>
-            <Grid container justifyContent="space-around">
-                <Grid item>
-                    Dispute Stage: {DisputeStages[task.dispute]}
-                </Grid>
-                <Grid item>
-                    Price: {formatEther(task.price)} ETH
-                </Grid>
-                <Grid item>
-                    Expiration Date: {time.toDateString()} | {time.toLocaleTimeString()}
-                </Grid>
-            </Grid>
-            <Box m={2.5}>
-                {console.log('oneffect')}
-                You are the {isClient ? "Client" : "Vendor"}
-            </Box>
-            <Grid container>
+
+    const ParticipantAdminPanel = () => (
+        <>
+            <Grid item container>
                 <Grid item container 
                     xs={6} 
                     alignItems="flex-end" 
                     justifyContent="flex-start" 
                     spacing={2}
                 >
-                    {isParticipant 
-                        && <ApproveButtons 
-                                isDisabled={approveButtonsDisabled}
-                                handleInput={handleTaskDecision}/>}
+                    <ApproveButtons 
+                        isDisabled={approveButtonsDisabled}
+                        handleInput={handleTaskDecision}/>
                 </Grid>
                 <Grid item container 
                     xs={6} 
@@ -229,16 +211,15 @@ export default function TaskDetails() {
                 </Grid>
             </Grid>
             <Box m={2}/>
-            <Grid container>
+            <Grid item container>
                 <Grid item container 
                     xs={6} 
                     alignItems="flex-end" 
                     justifyContent="flex-start" 
                     spacing={2}
                 >
-                    {isParticipant 
-                        && <EvidenceForm 
-                                addEvidence={handleEvidenceAdd}/>}
+                    <EvidenceForm 
+                        addEvidence={handleEvidenceAdd}/>
                 </Grid>
                 <Grid item container 
                     xs={6} 
@@ -252,35 +233,60 @@ export default function TaskDetails() {
                                 addTime={handleAddTime}/>}
                 </Grid>
             </Grid>
+
+        </>
+    )
+
+    const ParticipantInfo = () => (
+        <Box m={2.5}>
+            You are the {isClient ? "Client" : "Vendor"}
+            <br/>
+            {/* make colorful or some shit  */}
+            {DisputeStages[task.dispute] === "Internal Dispute"
+                && !isClient
+                && "This is your second chance to provide " + 
+                    "evidence and make a case for yourself " +
+                    "before your client decides to involve a third party. " }
+        </Box>
+    )
+    
+    return (
+        <div>
+        {console.log('oneffect')}
+            <Typography variant="h3">
+                {task.description}
+            </Typography>
+            <Grid container justifyContent="space-around">
+                <Grid item>
+                    Dispute Stage: {DisputeStages[task.dispute]}
+                </Grid>
+                <Grid item>
+                    ETH 
+                        {task.completed ? (
+                            task.consumer.approved ?
+                                " Transmitted" :
+                                " Returned"
+                            ) : " Locked"
+                        }: {formatEther(task.price)}
+                </Grid>
+                <Grid item>
+                    Expiration Date: {time.toDateString()} | {time.toLocaleTimeString()}
+                </Grid>
+            </Grid>
+            {isParticipant
+                && <ParticipantInfo/> }
             <Grid container>
-                <Grid item container
-                    xs={6}
-                    direction="column"
-                    alignItems="center"
-                >
-                    <Box m={2}>
-                        <Typography
-                            variant="h5"
-                        >
-                            Client Evidence
-                        </Typography>
-                    </Box>
-                    <EvidenceList evidence={task.consumer.evidence}/>
-                </Grid>
-                <Grid item container
-                    xs={6}
-                    direction="column"
-                    alignItems="center"
-                >
-                    <Box m={2}>
-                        <Typography
-                            variant="h5"
-                        >
-                            Vendor Evidence
-                        </Typography>
-                    </Box>
-                    <EvidenceList evidence={task.provider.evidence}/>
-                </Grid>
+                {isParticipant 
+                    && <ParticipantAdminPanel/> }
+            </Grid>
+            {/* This will not be visible to anyone who didn't participate in the task */}
+            <Grid container>
+                <EvidenceColumn 
+                    party="Client" 
+                    evidence={task.consumer.evidence}/>
+                <EvidenceColumn 
+                    party="Vendor"
+                    evidence={task.provider.evidence}/>
             </Grid>
         </div>
     )

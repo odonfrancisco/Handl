@@ -12,6 +12,9 @@ import TaskCreate from './components/task/TaskCreate';
 import TaskList from './components/task/TaskList';
 import TaskDetails from './components/task/details/TaskDetails';
 
+// feature creep
+// give eth locked a history of price additions for people to verify shit
+
 function App() {
   const [redirect, setRedirect] = useState();
   const {

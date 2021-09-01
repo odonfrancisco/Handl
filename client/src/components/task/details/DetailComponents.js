@@ -1,4 +1,5 @@
 import Grid from '@material-ui/core/Grid';
+import Box from '@material-ui/core/Box';
 import Button from '@material-ui/core/Button';
 import TextField from '@material-ui/core/TextField';
 import Select from '@material-ui/core/Select';
@@ -42,6 +43,21 @@ export const ClientButtons = ({handleInputChoice}) => {
     )
 }
 
+const handleInput = (value, func) => {
+    let success = false;
+    console.log(Number.parseFloat(value))
+    if(
+        Number.isNaN(Number.parseFloat(value)) 
+        && value.length > 0 
+        && value !== '.') {
+            success = false;
+    } else {
+        success = true;
+        func(value)
+    }
+    return success;
+}
+
 const AddFunds = ({
     input, 
     setInput, 
@@ -49,16 +65,14 @@ const AddFunds = ({
     addFunds
 }) => (
     <Grid item>
-        <input
+        <TextField
             type="text"
             placeholder="Add Funds"
             value={input}
             onChange={e => {
                 let value = e.target.value;
-                if(Number.isNaN(Number.parseFloat(value)) && value.length > 0 && value !== '.') {
+                if(!handleInput(value, setInput)) {
                     generateErr("Must pass a valid ETH amount");
-                } else {
-                    setInput(value)
                 }
             }}
         />
@@ -69,7 +83,6 @@ const AddFunds = ({
             Submit
         </Button>
     </Grid>
-    // )
 )
 
 const AddTime = ({
@@ -87,10 +100,8 @@ const AddTime = ({
             value={input}
             onChange={e => {
                 let value = e.target.value;
-                if(Number.isNaN(Number.parseFloat(value)) && value.length > 0 && value !== '.') {
+                if(!handleInput(value, setInput)){
                     generateErr("Must pass a valid time span");
-                } else {
-                    setInput(value)
                 }
             }}
         />
@@ -228,10 +239,46 @@ export const ApproveButtons = ({
     )
 }
 
+/* for some reason i had to separate this component from
+being inside EvidenceForm because input would de-focus on 
+each keystroke. */ 
+const Form = ({evidence, setEvidence, addEvidence}) => {
+    return (
+    <>
+        <TextField
+            type="text"
+            placeholder="Link to image of evidence"
+            value={evidence}
+            onChange={e => {
+                setEvidence(e.target.value);
+            }}
+        />
+        <IconButton
+            // {...{disabled: disableButton}}
+            onClick={async () => {
+                // setDisableButton(true);
+                addEvidence(evidence).then(() => {
+                    // setDisableButton(false);
+                    setEvidence('');
+                }).catch(err => {
+                    console.error(err);
+                    // setDisableButton(false);
+                });
+                // setDisableButton(false);
+                // if(success) {
+                //     setEvidence('');
+                // }
+            }}
+        >
+            <Sendicon/>
+        </IconButton>
+    </>
+    )
+}
 export const EvidenceForm = ({ addEvidence }) => {
     const [showEvidenceForm, setShowEvidenceForm] = useState(false);
-    const [disableButton, setDisableButton] = useState(false);
     const [evidence, setEvidence] = useState('');
+    // const [disableButton, setDisableButton] = useState(false);
 
     const EvidenceButton = () => (
         <Button
@@ -245,42 +292,14 @@ export const EvidenceForm = ({ addEvidence }) => {
         </Button>
     )
 
-    const Form = () => (
-        <>
-            <TextField
-                type="text"
-                placeholder="Link to image of evidence"
-                value={evidence}
-                onChange={e => {
-                    setEvidence(e.target.value);
-                }}
-            />
-            <IconButton
-                {...{disabled: disableButton}}
-                onClick={async () => {
-                    setDisableButton(true);
-                    addEvidence(evidence).then(() => {
-                        setDisableButton(false);
-                        setEvidence('');
-                    }).catch(err => {
-                        console.error(err);
-                        setDisableButton(false);
-                    });
-                    // setDisableButton(false);
-                    // if(success) {
-                    //     setEvidence('');
-                    // }
-                }}
-            >
-                <Sendicon/>
-            </IconButton>
-        </>
-    )
-    
     return (
         <Grid item>
             <EvidenceButton/>
-            {showEvidenceForm && <Form/>}
+            {showEvidenceForm 
+                && <Form 
+                    evidence={evidence} 
+                    setEvidence={setEvidence}
+                    addEvidence={addEvidence}/>}
         </Grid>
     )
 }
@@ -298,5 +317,24 @@ export const EvidenceList = ({evidence}) => {
                 </ImageListItem>
             ))}
         </ImageList>
+    )
+}
+
+export const EvidenceColumn = ({evidence, party}) => {
+    return (
+        <Grid item container
+        xs={6}
+        direction="column"
+        alignItems="center"
+        >
+            <Box m={2}>
+                <Typography
+                    variant="h5"
+                >
+                    {party} Evidence
+                </Typography>
+            </Box>
+            <EvidenceList evidence={evidence}/>
+        </Grid>
     )
 }
