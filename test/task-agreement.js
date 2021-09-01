@@ -433,10 +433,13 @@ describe("TaskAgreement", () => {
         await (await taskAgreement.connect(thirdParty)
             .assignThirdParty(taskId)).wait();
         const task = await taskAgreement.getTask(taskId);
+        const userTasks = await taskAgreement.connect(thirdParty)
+            .getUserTasks();
         disputedTasks = await taskAgreement.getDisputedTasks();
         filteredTaskRefs = disputedTasks.filter(task => task.id.eq(taskId));
         expect(task.thirdParty.to).to.equal(thirdParty.address);
         expect(filteredTaskRefs.length).to.equal(0);
+        expect(userTasks[userTasks.length-1].id).to.equal(task.id);
     })
 
     it("Should NOT assign third party twice to task.DISPUTE.THIRDPARTY", async () => {

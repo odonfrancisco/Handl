@@ -7,6 +7,7 @@ import React, { useState, useEffect, useContext } from 'react'
 import { useParams } from 'react-router'
 // Components
 import { 
+    TaskInfo,
     ClientButtons, 
     ClientInputs,
     ApproveButtons, 
@@ -36,10 +37,16 @@ const address0 = "0x0000000000000000000000000000000000000000";
 // client needs to be able to add evidence and other things while task.thirdParty
 /* need to add button to allow thirdParty to add themselves IF
 task.thirdParty.to == address(0) && task.dispute === 'thirdParty' */ 
+// when user adds themselves as a thirdParty, the page doesn't fully refresh and show the approval buttons
+// need to test if expired without expire button
+// need to test that approve buttons appear when thirdParty joins
+
 
 export default function TaskDetails() {
     const [task, setTask] = useState();
     const [isClient, setIsClient] = useState(false);
+    // literally only using this next state inside of one component
+    const [isVendor, setIsVendor] = useState(false);
     const [isParticipant, setIsParticipant] = useState(false);
     const [clientInputChoice, setClientInputChoice] = useState(Clientinput.none);
     const { contract, formatEther, account, parseEther } = useContext(Web3Context);
@@ -57,38 +64,27 @@ export default function TaskDetails() {
             // need a better way to settle whether user is participant or not
             
             if(DisputeStages[task.dispute] === 'Third Party Involvement') {
-                if(currentAccount === thirdPartyAddress) setIsParticipant(true); 
-                // currentAccount === thirdPartyAddress && !task.thirdParty.approved 
-                //     ? setApproveDisabled(false)
-                //     : setApproveDisabled(true);
-                /* if(currentAccount === clientAddress) {
+                if(currentAccount === thirdPartyAddress) {
+                    setIsParticipant(true)
+                } else if(currentAccount === clientAddress) {
                     setIsClient(true);                
                     setIsParticipant(true);
-                } else  */if(currentAccount === providerAddress) {
+                } else if(currentAccount === providerAddress) {
+                    setIsVendor(true);
                     setIsParticipant(true);
                 } else {
                     setIsParticipant(false);
                 }        
             } else {
                 if(currentAccount === clientAddress) {
-                    // setIsClient(true);
-                    // setIsParticipant(true);
-                    // task.provider.approved 
-                    //     ? setApproveDisabled(false) 
-                    //     : setApproveDisabled(true);
-                } else if(currentAccount === providerAddress) {
+                    setIsClient(true);
                     setIsParticipant(true);
-                    // task.provider.approved 
-                    //     ? setApproveDisabled(true) 
-                    //     : setApproveDisabled(false);
+                } else if(currentAccount === providerAddress) {
+                    setIsVendor(true);
+                    setIsParticipant(true);
                 } else {
                     setIsParticipant(false);
-                    // setApproveDisabled(true);
                 }    
-            }
-            if(currentAccount === clientAddress) {
-                setIsClient(true);                
-                setIsParticipant(true);
             }
         }
         init();
@@ -172,6 +168,7 @@ export default function TaskDetails() {
         tx.wait().then(async () => {
             const updatedTask = await contract.getTask(task.id);
             setTask(updatedTask);
+            setIsParticipant(true);
         }).catch(err => {
             console.error(err);
         })
@@ -233,8 +230,12 @@ export default function TaskDetails() {
                     justifyContent="flex-start" 
                     spacing={2}
                 >
-                    <EvidenceForm 
-                        addEvidence={handleEvidenceAdd}/>
+                    {
+                        (isClient
+                        || isVendor)
+                        && <EvidenceForm
+                                addEvidence={handleEvidenceAdd}/>
+                    }
                 </Grid>
                 <Grid item container 
                     xs={6} 
@@ -251,6 +252,47 @@ export default function TaskDetails() {
 
         </>
     )
+
+    if(task.completed && !isParticipant) {
+        return (
+            <div>
+                <Typography variant="h3">
+                    {task.description}
+                </Typography>
+                <Grid container justifyContent="space-around">
+                    <TaskInfo
+                        dispute={DisputeStages[task.dispute]}
+                        taskCompleted={task.completed}
+                        price={task.price}
+                        clientApproved={task.consumer.approved}
+                        thirdPartyApproved={task.thirdParty.approved}
+                        time={time}
+                        formatEther={formatEther}
+                    />
+                </Grid>
+                This task has already been completed
+            </div>
+        )
+    }
+
+    if(!isParticipant
+        && DisputeStages[task.dispute] === 'Third Party Involvement'
+        && task.thirdParty.to === address0
+    ) {
+        return (
+            <div>
+                <AddThirdPartyButton addThirdParty={handleAddThirdParty} />
+            </div>
+        )
+    }
+
+    if(task.completed) {
+        return(
+            <div>
+                this class has been completed
+            </div>
+        )
+    }
     
     return (
         <div>
@@ -259,25 +301,20 @@ export default function TaskDetails() {
                 {task.description}
             </Typography>
             <Grid container justifyContent="space-around">
-                <Grid item>
-                    Dispute Stage: {DisputeStages[task.dispute]}
-                </Grid>
-                <Grid item>
-                    ETH 
-                        {task.completed ? (
-                            task.consumer.approved ?
-                                " Transmitted" :
-                                " Returned"
-                            ) : " Locked"
-                        }: {formatEther(task.price)}
-                </Grid>
-                <Grid item>
-                    Expiration Date: {time.toDateString()} | {time.toLocaleTimeString()}
-                </Grid>
+                <TaskInfo
+                    dispute={DisputeStages[task.dispute]}
+                    taskCompleted={task.completed}
+                    price={task.price}
+                    clientApproved={task.consumer.approved}
+                    thirdPartyApproved={task.thirdParty.approved}
+                    time={time}
+                    formatEther={formatEther}
+                />
             </Grid>
             {isParticipant
                 && <ParticipantInfo 
                     isClient={isClient}
+                    isVendor={isVendor}
                     dispute={task.dispute}/> }
             <Grid container>
                 {isParticipant 

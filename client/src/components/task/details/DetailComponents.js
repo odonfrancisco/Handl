@@ -29,6 +29,39 @@ const Timeframe = {
     years: 31536000
 }
 
+export const TaskInfo = ({
+    dispute, 
+    taskCompleted, 
+    price,
+    clientApproved, 
+    thirdPartyApproved,
+    time,
+    formatEther
+}) => (
+    <>
+        <Grid item>
+            Dispute Stage: {dispute}
+        </Grid>
+        <Grid item>
+            ETH 
+                {taskCompleted ? (
+                    dispute === 'Third Party Involvement'
+                        ? thirdPartyApproved 
+                            ? " Transmitted"
+                            : " Returned"
+                        : clientApproved 
+                            ? " Transmitted" 
+                            : " Returned"
+                        ) : " Locked"
+                }: {formatEther(price)}
+        </Grid>
+        <Grid item>
+            Expiration Date: {time.toDateString()} | {time.toLocaleTimeString()}
+        </Grid>
+    </>
+)
+
+
 export const ClientButtons = ({handleInputChoice}) => {
     return (
         <>
@@ -246,9 +279,9 @@ export const ApproveButtons = ({
     )
 }
 
-export const ParticipantInfo = ({isClient, dispute}) => (
+export const ParticipantInfo = ({isClient, isVendor, dispute}) => (
     <Box m={2.5}>
-        You are the {isClient ? "Client" : "Vendor"}
+        You are the {isClient ? "Client" : isVendor ? "Vendor" : "Third Party"}
         <br/>
         {/* make colorful or some shit  */}
         {DisputeStages[dispute] === "Internal Dispute"

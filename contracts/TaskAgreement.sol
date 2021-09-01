@@ -4,13 +4,13 @@ pragma solidity ^0.8.0;
 import "hardhat/console.sol";
 
 // ensure that provider != consumer
-// ensure that neither provider NOR consumer NOR third party can be address.this
+// ensure that NOR provider NOR consumer NOR third party can be address.this
 // test for getUserTasks();
 // add tests for addFunds + addTime notCompleted modifier 
 // // side noat, i don't even think testing for the 
 // // modifier is necesary. already tested with all the other
 // // functions, so why these as well?
-// need to add disputedTask to thirdParty userTasks.
+// change consumer to client & provider to vendor
 
 contract TaskAgreement {
     event TaskCreated (
@@ -339,8 +339,13 @@ contract TaskAgreement {
         require(task.dispute == DisputeStage.ThirdParty,
             "Cannot assign a third party to this task until internally decided");
         User memory thirdParty;
+        TaskRef memory taskRef;
         thirdParty.to = payable(msg.sender);
         task.thirdParty = thirdParty;
+        taskRef.id = task.id;
+        taskRef.description = task.description;
+
+        userTasks[msg.sender].push(taskRef);        
         removeFromDisputedTasks(task.id);
         /* do return statements use more Gas? if so, i'd 
         try and find a different solution */
