@@ -10,7 +10,7 @@ import Sendicon from '@material-ui/icons/Send'
 import ImageList from '@material-ui/core/ImageList';
 import ImageListItem from '@material-ui/core/ImageListItem';
 // React
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 const DisputeStages = {
     0: 'No Dispute',
@@ -62,7 +62,7 @@ export const TaskInfo = ({
 )
 
 
-export const ClientButtons = ({handleInputChoice}) => {
+export const ClientButtons = ({handleInputChoice, expireTask}) => {
     return (
         <>
             <Grid item>
@@ -86,6 +86,20 @@ export const ClientButtons = ({handleInputChoice}) => {
                 >
                     <Typography>
                         Add Time
+                    </Typography>
+                </Button>
+            </Grid>
+            <Grid item>
+                <Button
+                    variant="contained"
+                    onClick={() => {
+                        expireTask().catch(err => {
+                            console.error(err);
+                        })
+                    }}
+                >
+                    <Typography>
+                        Expired?
                     </Typography>
                 </Button>
             </Grid>
@@ -363,6 +377,7 @@ export const EvidenceList = ({evidence}) => {
             {evidence.map(item => (
                 <ImageListItem key={item}>
                     <img 
+                        alt="Evidence"
                         src={item} 
                         width="100%"
                         height="100%"

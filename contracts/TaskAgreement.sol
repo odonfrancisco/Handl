@@ -11,6 +11,7 @@ import "hardhat/console.sol";
 // // modifier is necesary. already tested with all the other
 // // functions, so why these as well?
 // change consumer to client & provider to vendor
+// need to work on the specifics if expire() works when task.thirdParty
 
 contract TaskAgreement {
     event TaskCreated (

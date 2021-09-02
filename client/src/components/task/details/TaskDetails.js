@@ -35,11 +35,8 @@ const address0 = "0x0000000000000000000000000000000000000000";
 // need to show something completely different is task.completed
 // need to add button to check if task is expired
 // client needs to be able to add evidence and other things while task.thirdParty
-/* need to add button to allow thirdParty to add themselves IF
-task.thirdParty.to == address(0) && task.dispute === 'thirdParty' */ 
-// when user adds themselves as a thirdParty, the page doesn't fully refresh and show the approval buttons
 // need to test if expired without expire button
-// need to test that approve buttons appear when thirdParty joins
+// for some reason, can't set a task to expire faster than like 3 minutes or so.
 
 
 export default function TaskDetails() {
@@ -101,7 +98,6 @@ export default function TaskDetails() {
 
     const handleTaskDecision = async approve => {
         let success = false;
-        // setApproveDisabled(true);
         if(approve) {
             const tx = await contract.approveTask(task.id);
             await tx.wait().then(async () => {
@@ -111,7 +107,6 @@ export default function TaskDetails() {
             }).catch(err => {
                 console.error(err);
                 success = false;
-                // setApproveDisabled(false);
             })
         } else {
             const tx = await contract.disapproveTask(task.id);
@@ -122,7 +117,6 @@ export default function TaskDetails() {
             }).catch(err => {
                 console.error(err);
                 success = false;
-                // setApproveDisabled(false);
             })
         }
         return success;
@@ -174,6 +168,16 @@ export default function TaskDetails() {
         })
     }
 
+    const handleCheckExpired = async () => {
+        const tx = await contract.expireTask(task.id);
+        tx.wait().then(async () => {
+            const updatedTask = await contract.getTask(task.id);
+            setTask(updatedTask);
+        }).catch(err => {
+            console.error(err);
+        })
+    }
+
     const approveButtonsDisabled = () => {        
         let isDisabled = true;
         const clientAddress = task.consumer.to.toLowerCase();
@@ -219,6 +223,7 @@ export default function TaskDetails() {
                     {isClient 
                         && <ClientButtons 
                                 handleInputChoice={handleClientInputChoice}
+                                expireTask={handleCheckExpired}
                                 />}
                 </Grid>
             </Grid>
@@ -231,8 +236,7 @@ export default function TaskDetails() {
                     spacing={2}
                 >
                     {
-                        (isClient
-                        || isVendor)
+                        (isClient || isVendor)
                         && <EvidenceForm
                                 addEvidence={handleEvidenceAdd}/>
                     }
@@ -285,14 +289,6 @@ export default function TaskDetails() {
             </div>
         )
     }
-
-    if(task.completed) {
-        return(
-            <div>
-                this class has been completed
-            </div>
-        )
-    }
     
     return (
         <div>
@@ -311,13 +307,15 @@ export default function TaskDetails() {
                     formatEther={formatEther}
                 />
             </Grid>
+            {task.completed && "This task has been completed"}
             {isParticipant
                 && <ParticipantInfo 
                     isClient={isClient}
                     isVendor={isVendor}
                     dispute={task.dispute}/> }
             <Grid container>
-                {isParticipant 
+                {isParticipant
+                    && !task.completed 
                     && <ParticipantAdminPanel/> }
                 {task.thirdParty.to === address0
                     && DisputeStages[task.dispute] === "Third Party Involvement"

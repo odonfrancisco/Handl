@@ -77,9 +77,9 @@ async function main() {
   // }
   for(let i = 0; i < taskIds.length; i++) { 
     const taskId = taskIds[i];
-    for(let e = 0; e < providerEvidence.length; i++) {
-      await taskAgreement.connect(signers[0]).addEvidence(taskId, consumerEvidence[i]);
-      await taskAgreement.connect(signers[1]).addEvidence(taskId, providerEvidence[i]);  
+    for(let e = 0; e < providerEvidence.length; e++) {
+      await taskAgreement.connect(signers[0]).addEvidence(taskId, consumerEvidence[e]);
+      await taskAgreement.connect(signers[1]).addEvidence(taskId, providerEvidence[e]);  
     }
   }
   // brings tasks up to dispute.thirdparty

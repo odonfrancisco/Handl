@@ -38,7 +38,7 @@ export default function MetaMask() {
 				// Hardhat Local
                 // need a way to dynamically retrieve these values
 				if (chainId === '0x7a69') {
-					contractAddress = '0xfaAddC93baf78e89DCf37bA67943E1bE8F37Bb8c';
+					contractAddress = '0x38a024C0b412B9d1db8BC398140D00F5Af3093D4';
                 // Rinkeby
 				} else if (chainId === '0x4') {
 					contractAddress = '';
