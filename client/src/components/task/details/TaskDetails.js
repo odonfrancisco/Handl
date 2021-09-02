@@ -31,13 +31,14 @@ const Clientinput = {
 
 const address0 = "0x0000000000000000000000000000000000000000";
 
-// need to redirect if not participant (expect if in dispute.thirdParty)
-// need to show something completely different is task.completed
-// need to add button to check if task is expired
-// client needs to be able to add evidence and other things while task.thirdParty
 // need to test if expired without expire button
 // for some reason, can't set a task to expire faster than like 3 minutes or so.
+// add toggle to switch between completed and in-progress tasks
+// when create task, send to taskDetails page, not taskList
 
+// feature creep
+// a crucial piece would be a sort of message board on taskDetails page
+// indicate what ended the task (expired, client disapproved, etcs)
 
 export default function TaskDetails() {
     const [task, setTask] = useState();
@@ -202,6 +203,37 @@ export default function TaskDetails() {
     if(!task) return null;
     let time = new Date(task.expiration.toString()*1000);
 
+    const TaskHeader = () => (
+        <Grid item xs>
+            <Grid item container
+                justifyContent="space-between">
+                <Grid item>
+                    <Typography variant="h3">
+                        {task.description}
+                    </Typography>
+                </Grid>
+                <Grid item>
+                    <Typography>
+                        {task.completed 
+                            && "This task has been completed"}
+                    </Typography>
+                </Grid>
+            </Grid>
+            <Grid item container justifyContent="space-between">
+                <TaskInfo
+                    dispute={DisputeStages[task.dispute]}
+                    taskCompleted={task.completed}
+                    price={task.price}
+                    clientApproved={task.consumer.approved}
+                    thirdPartyApproved={task.thirdParty.approved}
+                    time={time}
+                    formatEther={formatEther}
+                    isParticipant={isParticipant}
+                />
+            </Grid>
+        </Grid>
+    )
+
     const ParticipantAdminPanel = () => (
         <>
             <Grid item container>
@@ -235,8 +267,7 @@ export default function TaskDetails() {
                     justifyContent="flex-start" 
                     spacing={2}
                 >
-                    {
-                        (isClient || isVendor)
+                    {(isClient || isVendor)
                         && <EvidenceForm
                                 addEvidence={handleEvidenceAdd}/>
                     }
@@ -257,72 +288,34 @@ export default function TaskDetails() {
         </>
     )
 
-    if(task.completed && !isParticipant) {
-        return (
-            <div>
-                <Typography variant="h3">
-                    {task.description}
-                </Typography>
-                <Grid container justifyContent="space-around">
-                    <TaskInfo
-                        dispute={DisputeStages[task.dispute]}
-                        taskCompleted={task.completed}
-                        price={task.price}
-                        clientApproved={task.consumer.approved}
-                        thirdPartyApproved={task.thirdParty.approved}
-                        time={time}
-                        formatEther={formatEther}
-                    />
-                </Grid>
-                This task has already been completed
-            </div>
-        )
-    }
-
     if(!isParticipant
         && DisputeStages[task.dispute] === 'Third Party Involvement'
         && task.thirdParty.to === address0
     ) {
         return (
             <div>
+                <TaskHeader/>
                 <AddThirdPartyButton addThirdParty={handleAddThirdParty} />
             </div>
         )
     }
+
+    if(!isParticipant) return ( <TaskHeader/> );
     
     return (
         <div>
         {console.log('oneffect')}
-            <Typography variant="h3">
-                {task.description}
-            </Typography>
-            <Grid container justifyContent="space-around">
-                <TaskInfo
-                    dispute={DisputeStages[task.dispute]}
-                    taskCompleted={task.completed}
-                    price={task.price}
-                    clientApproved={task.consumer.approved}
-                    thirdPartyApproved={task.thirdParty.approved}
-                    time={time}
-                    formatEther={formatEther}
-                />
+            <Grid container >
+                <TaskHeader/>
             </Grid>
-            {task.completed && "This task has been completed"}
-            {isParticipant
-                && <ParticipantInfo 
+            <ParticipantInfo 
                     isClient={isClient}
                     isVendor={isVendor}
-                    dispute={task.dispute}/> }
+                    dispute={task.dispute}/>
             <Grid container>
-                {isParticipant
-                    && !task.completed 
+                {!task.completed 
                     && <ParticipantAdminPanel/> }
-                {task.thirdParty.to === address0
-                    && DisputeStages[task.dispute] === "Third Party Involvement"
-                    && !isParticipant
-                    && <AddThirdPartyButton addThirdParty={handleAddThirdParty} /> }
             </Grid>
-            {/* This will not be visible to anyone who didn't participate in the task */}
             <Grid container>
                 <EvidenceColumn 
                     party="Client" 

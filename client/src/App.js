@@ -25,21 +25,25 @@ function App() {
   
   const handleCreateTask = async (description, provider, expiresIn, amount) => {
     let success = false;
-    try{
-        const tx = await contract.createTask(
-          provider, 
-          description, 
-          expiresIn,
-          {value: parseEther(amount)});
-        await tx.wait();
-        setRedirect(<Redirect to={{
-          pathname: '/myTasks'
-        }}/>);
-        success = true;
-    } catch(err) {
+    const tx = await contract.createTask(
+      provider, 
+      description, 
+      expiresIn,
+      {value: parseEther(amount)});
+    await tx.wait().then(tx => {
+      console.log("tx");
+      console.log(tx.events[0].args);
+      const id = tx.events[0].args.id;
+      // console.log(event.)
+      setRedirect(<Redirect to={{
+        pathname: `/tasks/${id.toString()}`
+      }}/>);
+      success = true;  
+    }).catch(err => {
       console.error(err);
-      return false;
-    }
+      success = false;
+    });
+
     return success;
   }
 

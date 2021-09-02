@@ -50,14 +50,21 @@ export default function TaskCreate({ handleCreateTask }) {
             console.log('expirationTime');
             console.log(expirationTime);
 
-            if(!(await handleCreateTask(
-                    description, 
-                    providerAddress,
-                    expirationTime,
-                    amount ))
-            ){
-                setButtonDisabled(false);
-            }
+            handleCreateTask(
+                description, 
+                providerAddress,
+                expirationTime,
+                amount).catch(err => {
+                    let message = '';
+                    if(err.data) {
+                        message = err.data.message
+                    }
+                    const index = message.indexOf("'");
+                    const errMessage = message
+                        .slice(index+1, message.length-1);
+                    generateErrorMessage(errMessage);
+                    setButtonDisabled(false);
+                });        
         }
 
         const handleInput = () => {

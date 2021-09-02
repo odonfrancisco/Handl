@@ -5,13 +5,15 @@ import "hardhat/console.sol";
 
 // ensure that provider != consumer
 // ensure that NOR provider NOR consumer NOR third party can be address.this
+// ensure that msg.value is returned if user addFunds() but task expires 
+// test both above
 // test for getUserTasks();
 // add tests for addFunds + addTime notCompleted modifier 
 // // side noat, i don't even think testing for the 
 // // modifier is necesary. already tested with all the other
 // // functions, so why these as well?
 // change consumer to client & provider to vendor
-// need to work on the specifics if expire() works when task.thirdParty
+// need to work on the business specifics on whether expire() works when task.thirdParty
 
 contract TaskAgreement {
     event TaskCreated (
@@ -173,6 +175,15 @@ contract TaskAgreement {
     ) external payable
     validEthQuantity() validStrLength(description)
     validExpirationTime(expiresIn) {
+        // should i modify the modifiers above to return msg.value if sent?
+        /* actually, i don't think that would be necessary. if one of the
+        modifiers is triggered, the function call reverts and contract resets state
+        or some shit. so i'm pretty sure either a) msg.value isn't sent once call reverts,
+        b) msg.value is sent back to sender once call reverts */
+        require(providerAddress != payable(msg.sender),
+            "Vendor & Client addresses should be distinct");
+        require(providerAddress != payable(address(this)),
+            "This smart contract can not be a task vendor");
         Task memory task;
         User memory provider;
         User memory consumer;
@@ -195,7 +206,7 @@ contract TaskAgreement {
         userTasks[providerAddress].push(taskRef);
         userTasks[msg.sender].push(taskRef);
 
-        emit TaskCreated(numTasks, task, tasks[numTasks].id == numTasks);
+        emit TaskCreated(task.id, task, tasks[numTasks].id == numTasks);
         numTasks++; 
     }
 
@@ -204,7 +215,11 @@ contract TaskAgreement {
     notCompleted(taskId)
     returns(bool) {
         bool isExpired = expireTask(taskId);
-        if(isExpired) return false;
+        if(isExpired) {
+            // sends back payment in case task already expired
+            payable(msg.sender).transfer(msg.value);
+            return false;
+        }
         Task storage task = tasks[taskId];
         require(msg.sender == task.consumer.to,
             "Only the consumer of this task may add funds");
@@ -339,6 +354,11 @@ contract TaskAgreement {
             "Third party can not already be connected to this task");
         require(task.dispute == DisputeStage.ThirdParty,
             "Cannot assign a third party to this task until internally decided");
+        /* Not even sure that this is necessary? How would this 
+        smart contract call an external function? for this reason i won't
+        be conducting the test below for client in createTask() */
+        require(msg.sender != address(this),
+            "This smart contract can not be the third party of a task");
         User memory thirdParty;
         TaskRef memory taskRef;
         thirdParty.to = payable(msg.sender);

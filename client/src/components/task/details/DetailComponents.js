@@ -36,30 +36,38 @@ export const TaskInfo = ({
     clientApproved, 
     thirdPartyApproved,
     time,
-    formatEther
-}) => (
+    formatEther,
+    isParticipant
+}) => {
+    const EthAmount = () => (
+        <Grid item>
+        ETH 
+            {taskCompleted ? (
+                dispute === 'Third Party Involvement'
+                    ? thirdPartyApproved 
+                        ? " Transmitted"
+                        : " Returned"
+                    : clientApproved 
+                        ? " Transmitted" 
+                        : " Returned"
+                    ) : " Locked"
+            }: {formatEther(price)}
+        </Grid>
+
+    )
+    return (
     <>
         <Grid item>
             Dispute Stage: {dispute}
         </Grid>
-        <Grid item>
-            ETH 
-                {taskCompleted ? (
-                    dispute === 'Third Party Involvement'
-                        ? thirdPartyApproved 
-                            ? " Transmitted"
-                            : " Returned"
-                        : clientApproved 
-                            ? " Transmitted" 
-                            : " Returned"
-                        ) : " Locked"
-                }: {formatEther(price)}
-        </Grid>
+        {isParticipant 
+            && <EthAmount/>}
         <Grid item>
             Expiration Date: {time.toDateString()} | {time.toLocaleTimeString()}
         </Grid>
     </>
-)
+    )
+}
 
 
 export const ClientButtons = ({handleInputChoice, expireTask}) => {
