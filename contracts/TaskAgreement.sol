@@ -3,8 +3,8 @@ pragma solidity ^0.8.0;
 
 import "hardhat/console.sol";
 
-// ensure that provider != consumer
-// ensure that NOR provider NOR consumer NOR third party can be address.this
+// ensure that vendor != client
+// ensure that NOR vendor NOR client NOR third party can be address.this
 // ensure that msg.value is returned if user addFunds() but task expires 
 // test both above
 // test for getUserTasks();
@@ -12,8 +12,8 @@ import "hardhat/console.sol";
 // // side noat, i don't even think testing for the 
 // // modifier is necesary. already tested with all the other
 // // functions, so why these as well?
-// change consumer to client & provider to vendor
 // need to work on the business specifics on whether expire() works when task.thirdParty
+// i think ^ should be yes
 
 contract TaskAgreement {
     event TaskCreated (
@@ -32,8 +32,8 @@ contract TaskAgreement {
         uint id;
         uint price;
         string description;
-        User provider;
-        User consumer;
+        User vendor;
+        User client;
         User thirdParty;
         DisputeStage dispute;
         bool completed;
@@ -86,8 +86,8 @@ contract TaskAgreement {
     modifier isValidUser(uint taskId) {
         Task memory task = tasks[taskId];
         require(
-            msg.sender == task.consumer.to 
-            || msg.sender == task.provider.to
+            msg.sender == task.client.to 
+            || msg.sender == task.vendor.to
             || msg.sender == task.thirdParty.to, 
             "Can not interact with a task you're not a part of");
         _;
@@ -159,9 +159,9 @@ contract TaskAgreement {
     function expireTask(uint taskId) public returns(bool){
         Task storage task = tasks[taskId];
         bool isExpired = false;
-        if(!task.provider.approved && task.dispute != DisputeStage.ThirdParty) {
+        if(!task.vendor.approved && task.dispute != DisputeStage.ThirdParty) {
             if(task.expiration <= block.timestamp) {
-                completeTask(task, task.consumer.to);
+                completeTask(task, task.client.to);
                 isExpired = true;
             }
         }
@@ -169,7 +169,7 @@ contract TaskAgreement {
     }
 
     function createTask(
-        address payable providerAddress, 
+        address payable vendorAddress, 
         string memory description,
         uint expiresIn
     ) external payable
@@ -180,19 +180,19 @@ contract TaskAgreement {
         modifiers is triggered, the function call reverts and contract resets state
         or some shit. so i'm pretty sure either a) msg.value isn't sent once call reverts,
         b) msg.value is sent back to sender once call reverts */
-        require(providerAddress != payable(msg.sender),
+        require(vendorAddress != payable(msg.sender),
             "Vendor & Client addresses should be distinct");
-        require(providerAddress != payable(address(this)),
+        require(vendorAddress != payable(address(this)),
             "This smart contract can not be a task vendor");
         Task memory task;
-        User memory provider;
-        User memory consumer;
-        provider.to = providerAddress;
-        consumer.to = payable(msg.sender);
+        User memory vendor;
+        User memory client;
+        vendor.to = vendorAddress;
+        client.to = payable(msg.sender);
 
         task.id = numTasks;
-        task.provider = provider;
-        task.consumer = consumer;
+        task.vendor = vendor;
+        task.client = client;
         task.price = msg.value;
         task.description = description;
         task.dispute = DisputeStage.None;
@@ -203,7 +203,7 @@ contract TaskAgreement {
         taskRef.description = task.description;
 
         tasks[numTasks] = task;
-        userTasks[providerAddress].push(taskRef);
+        userTasks[vendorAddress].push(taskRef);
         userTasks[msg.sender].push(taskRef);
 
         emit TaskCreated(task.id, task, tasks[numTasks].id == numTasks);
@@ -221,8 +221,8 @@ contract TaskAgreement {
             return false;
         }
         Task storage task = tasks[taskId];
-        require(msg.sender == task.consumer.to,
-            "Only the consumer of this task may add funds");
+        require(msg.sender == task.client.to,
+            "Only the client of this task may add funds");
         task.price = task.price + msg.value;
         return true;
     }
@@ -234,8 +234,8 @@ contract TaskAgreement {
         bool isExpired = expireTask(taskId);
         if(isExpired) return false;
         Task storage task = tasks[taskId];
-        require(msg.sender == task.consumer.to,
-            "Only the consumer of this task may add expiration time");
+        require(msg.sender == task.client.to,
+            "Only the client of this task may add expiration time");
         task.expiration = task.expiration + time;
         return true;
     }
@@ -251,10 +251,10 @@ contract TaskAgreement {
         bool isExpired = expireTask(taskId);
         if(isExpired) return false;
         Task storage task = tasks[taskId];
-        if(msg.sender == task.consumer.to) {
-            task.consumer.evidence.push(evidence);
-        } else if(msg.sender == task.provider.to) {
-            task.provider.evidence.push(evidence);
+        if(msg.sender == task.client.to) {
+            task.client.evidence.push(evidence);
+        } else if(msg.sender == task.vendor.to) {
+            task.vendor.evidence.push(evidence);
         } else if(msg.sender == task.thirdParty.to) {
             task.thirdParty.evidence.push(evidence);
         }
@@ -270,25 +270,25 @@ contract TaskAgreement {
         bool isExpired = expireTask(taskId);
         if(isExpired) return false;
         Task storage task = tasks[taskId];
-        if(msg.sender == task.consumer.to) {
-            require(task.provider.approved,
-                "Provider must approve task before you can approve eth transfer");
+        if(msg.sender == task.client.to) {
+            require(task.vendor.approved,
+                "Vendor must approve task before you can approve eth transfer");
             /* This check seems like a bit of a waste since this
             function won't execute unless the task hasn't been completed */ 
-            /* ^ if(task.consumer.approved), that automatically means task.completed.
+            /* ^ if(task.client.approved), that automatically means task.completed.
             therefore this function wouldn't even be running */
-            require(!task.consumer.approved,
+            require(!task.client.approved,
                 "You can not approve a task twice");
-            task.consumer.approved = true;
-            completeTask(task, task.provider.to);
-        } else if(msg.sender == task.provider.to) {
-            require(!task.provider.approved,
+            task.client.approved = true;
+            completeTask(task, task.vendor.to);
+        } else if(msg.sender == task.vendor.to) {
+            require(!task.vendor.approved,
                 "You can not approve a task twice");
-            task.provider.approved = true;
+            task.vendor.approved = true;
         }
         if(task.dispute == DisputeStage.ThirdParty){
             task.thirdParty.approved = true;
-            completeTask(task, task.provider.to);
+            completeTask(task, task.vendor.to);
         }
         return true;
     }
@@ -302,28 +302,28 @@ contract TaskAgreement {
         bool isExpired = expireTask(taskId);
         if(isExpired) return false;
         Task storage task = tasks[taskId];
-        if(msg.sender == task.consumer.to) {
-            require(task.provider.approved,
-                "Provider must approve task on their end before you can open a dispute");
+        if(msg.sender == task.client.to) {
+            require(task.vendor.approved,
+                "Vendor must approve task on their end before you can open a dispute");
         }
-        /* would like to place if(msg.sender == task.provider) out here
+        /* would like to place if(msg.sender == task.vendor) out here
         but would want to end function execution inside of it. not sure 
         how to handle */
         // Is there a better way to structure all this without the nested ifs?
         if(task.dispute == DisputeStage.None) {
-            if(msg.sender == task.consumer.to) {
-                task.consumer.approved = false;
-                task.provider.approved = false;
+            if(msg.sender == task.client.to) {
+                task.client.approved = false;
+                task.vendor.approved = false;
                 task.dispute = DisputeStage.Internal;
-            } else if(msg.sender == task.provider.to) {
-                /* If provider disapproves task, then 
-                ether should be sent back to consumer. */
-                completeTask(task, task.consumer.to);
+            } else if(msg.sender == task.vendor.to) {
+                /* If vendor disapproves task, then 
+                ether should be sent back to client. */
+                completeTask(task, task.client.to);
             }
         } else if(task.dispute == DisputeStage.Internal) {
-            if(msg.sender == task.consumer.to) {
-                task.consumer.approved = false;
-                task.provider.approved = false;
+            if(msg.sender == task.client.to) {
+                task.client.approved = false;
+                task.vendor.approved = false;
                 task.dispute = DisputeStage.ThirdParty;
 
                 TaskRef memory taskRef;
@@ -331,11 +331,11 @@ contract TaskAgreement {
                 taskRef.description = task.description;
 
                 disputedTasks.push(taskRef);
-            } else if(msg.sender == task.provider.to) {
-                completeTask(task, task.consumer.to);
+            } else if(msg.sender == task.vendor.to) {
+                completeTask(task, task.client.to);
             }
         } else if(task.dispute == DisputeStage.ThirdParty) {
-            completeTask(task, task.consumer.to);
+            completeTask(task, task.client.to);
         }
         return true;
     }
@@ -350,7 +350,7 @@ contract TaskAgreement {
         Task storage task = tasks[taskId];
         require(task.thirdParty.to == address(0), 
             "A third party has already been assigned to this task");
-        require(msg.sender != task.consumer.to && msg.sender != task.provider.to,
+        require(msg.sender != task.client.to && msg.sender != task.vendor.to,
             "Third party can not already be connected to this task");
         require(task.dispute == DisputeStage.ThirdParty,
             "Cannot assign a third party to this task until internally decided");

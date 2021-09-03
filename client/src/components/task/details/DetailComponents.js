@@ -57,9 +57,12 @@ export const TaskInfo = ({
     )
     return (
     <>
-        <Grid item>
-            Dispute Stage: {dispute}
-        </Grid>
+        {dispute != 'No Dispute'
+            && (
+                <Grid item>
+                    Dispute Stage {dispute}
+                </Grid>
+            )}
         {isParticipant 
             && <EthAmount/>}
         <Grid item>

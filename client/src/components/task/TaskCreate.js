@@ -1,5 +1,6 @@
 import Grid from '@material-ui/core/Grid';
 import Box from '@material-ui/core/Box';
+import Typography from '@material-ui/core/Typography';
 import Select from '@material-ui/core/Select';
 import MenuItem from '@material-ui/core/MenuItem';
 import TextField from '@material-ui/core/TextField'
@@ -22,10 +23,7 @@ const Timeframe = {
 
 export default function TaskCreate({ handleCreateTask }) {
         const [description, setDescription] = useState('');
-        /* damn this naming convention for providerAddress lowkey confusing.
-        debating using producer or something else so as to not get confused 
-        with web3Provider */
-        const [providerAddress, setProviderAddress] = useState('');
+        const [vendorAddress, setVendorAddress] = useState('');
         const [expiresIn, setExpiresIn] = useState(0);
         const [timeFrame, setTimeFrame] = useState('days');
         const [amount, setAmount] = useState('');
@@ -36,11 +34,11 @@ export default function TaskCreate({ handleCreateTask }) {
 
         useEffect(() => {
             handleInput();
-        }, [providerAddress, description, expiresIn, amount])
+        }, [vendorAddress, description, expiresIn, amount])
         
         const handleTaskCreate = async () => {
             if(description.length < 0
-                || !isValidAddress(providerAddress)
+                || !isValidAddress(vendorAddress)
                 || expiresIn < 0
                 || amount.length < 0){
                     generateErrorMessage("Must pass valid inputs to create a task");
@@ -52,7 +50,7 @@ export default function TaskCreate({ handleCreateTask }) {
 
             handleCreateTask(
                 description, 
-                providerAddress,
+                vendorAddress,
                 expirationTime,
                 amount).catch(err => {
                     let message = '';
@@ -69,7 +67,7 @@ export default function TaskCreate({ handleCreateTask }) {
 
         const handleInput = () => {
             if(description.length > 0
-                && isValidAddress(providerAddress)
+                && isValidAddress(vendorAddress)
                 && expiresIn > 0
                 && amount.length > 0){
                 setButtonDisabled(false);
@@ -86,7 +84,17 @@ export default function TaskCreate({ handleCreateTask }) {
         }
         
         return (
-            <Box pt={8}>
+            <>
+                <Box p={2}/>
+                <Grid
+                    container
+                    justifyContent="center"
+                >
+                    <Typography variant="h3">
+                        Create {description}
+                    </Typography>
+                </Grid>
+                <Box p={2}/>
                 <Grid 
                     container 
                     spacing={1} 
@@ -107,10 +115,10 @@ export default function TaskCreate({ handleCreateTask }) {
                     <Grid item>
                         <TextField
                             type="text"
-                            value={providerAddress}
-                            placeholder="Provider Address"
+                            value={vendorAddress}
+                            placeholder="Vendor Address"
                             onChange={e => {
-                                setProviderAddress(e.target.value);
+                                setVendorAddress(e.target.value);
                                 if(!isValidAddress(e.target.value)) {
                                     generateErrorMessage("Please input a valid address");
                                 }
@@ -175,7 +183,7 @@ export default function TaskCreate({ handleCreateTask }) {
                     </Grid>
                 </Grid>
 
-            </Box>
+            </>
 
         )
 }

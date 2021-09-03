@@ -55,8 +55,8 @@ export default function TaskDetails() {
             const task = await contract.getTask(taskId);
             setTask(task);
 
-            const clientAddress = task.consumer.to.toLowerCase();
-            const providerAddress = task.provider.to.toLowerCase();
+            const clientAddress = task.client.to.toLowerCase();
+            const vendorAddress = task.vendor.to.toLowerCase();
             const thirdPartyAddress = task.thirdParty.to.toLowerCase();
             const currentAccount = account.toLowerCase();
             // need a better way to settle whether user is participant or not
@@ -67,7 +67,7 @@ export default function TaskDetails() {
                 } else if(currentAccount === clientAddress) {
                     setIsClient(true);                
                     setIsParticipant(true);
-                } else if(currentAccount === providerAddress) {
+                } else if(currentAccount === vendorAddress) {
                     setIsVendor(true);
                     setIsParticipant(true);
                 } else {
@@ -77,7 +77,7 @@ export default function TaskDetails() {
                 if(currentAccount === clientAddress) {
                     setIsClient(true);
                     setIsParticipant(true);
-                } else if(currentAccount === providerAddress) {
+                } else if(currentAccount === vendorAddress) {
                     setIsVendor(true);
                     setIsParticipant(true);
                 } else {
@@ -181,14 +181,14 @@ export default function TaskDetails() {
 
     const approveButtonsDisabled = () => {        
         let isDisabled = true;
-        const clientAddress = task.consumer.to.toLowerCase();
-        const providerAddress = task.provider.to.toLowerCase();
+        const clientAddress = task.client.to.toLowerCase();
+        const vendorAddress = task.vendor.to.toLowerCase();
         const thirdPartyAddress = task.thirdParty.to.toLowerCase();
         if(account === clientAddress
-            && task.provider.approved) {
+            && task.vendor.approved) {
                 isDisabled = false                
-        } else if(account === providerAddress
-            && !task.provider.approved) {
+        } else if(account === vendorAddress
+            && !task.vendor.approved) {
                 isDisabled = false
         }
         if(DisputeStages[task.dispute] === 'Third Party Involvement'){
@@ -219,12 +219,13 @@ export default function TaskDetails() {
                     </Typography>
                 </Grid>
             </Grid>
+            <Box p={1}/>
             <Grid item container justifyContent="space-between">
                 <TaskInfo
                     dispute={DisputeStages[task.dispute]}
                     taskCompleted={task.completed}
                     price={task.price}
-                    clientApproved={task.consumer.approved}
+                    clientApproved={task.client.approved}
                     thirdPartyApproved={task.thirdParty.approved}
                     time={time}
                     formatEther={formatEther}
@@ -319,10 +320,10 @@ export default function TaskDetails() {
             <Grid container>
                 <EvidenceColumn 
                     party="Client" 
-                    evidence={task.consumer.evidence}/>
+                    evidence={task.client.evidence}/>
                 <EvidenceColumn 
                     party="Vendor"
-                    evidence={task.provider.evidence}/>
+                    evidence={task.vendor.evidence}/>
             </Grid>
         </div>
     )

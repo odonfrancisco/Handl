@@ -10,11 +10,11 @@ const dispute = {
 }
 
 let taskDescriptions = ["Test Task", "Test 2", "Test 3", "Test 4", "Test 5", "Test 6", "Test 7"];
-let providerEvidence = [
+let vendorEvidence = [
     "https://www.acutaboveexteriors.com/wp-content/uploads/2020/05/file-3.jpg",
     "https://www.sempersolaris.com/wp-content/uploads/2018/08/roof-1-760x340.jpg"
 ];
-let consumerEvidence = [
+let clientEvidence = [
     "http://www.homebyhomeexteriors.com/wp-content/uploads/2014/04/photo-5.jpg",
     "http://gjkeller.com/wp-content/uploads/2017/05/when-roofing-goes-wrong-1.jpg"
 ];
@@ -27,7 +27,7 @@ instead of testing an independent task per test.
 don't know if this is ok or if i should be testing an independent task per test.*/
 
 describe("TaskAgreement", () => {
-    let consumer, provider, thirdParty;
+    let client, vendor, thirdParty;
     let taskAgreement;
     let taskIds = [];
 
@@ -35,7 +35,7 @@ describe("TaskAgreement", () => {
         const taskAgreementContract = await ethers.getContractFactory("TaskAgreement");
         taskAgreement = await taskAgreementContract.deploy();
         await taskAgreement.deployed();
-        [consumer, provider, thirdParty] = await ethers.getSigners();
+        [client, vendor, thirdParty] = await ethers.getSigners();
     })
     
     it("Should create tasks successfully", async () => {
@@ -44,9 +44,9 @@ describe("TaskAgreement", () => {
         for(let i = 0; i < prices.length; i++){
             const createTaskTx = await 
                 (await taskAgreement
-                    .connect(consumer)
+                    .connect(client)
                     .createTask(
-                        provider.address, 
+                        vendor.address, 
                         taskDescriptions[i], 
                         expirationTimes[i],
                         {value: parseEther(prices[i].toString())}
@@ -66,14 +66,14 @@ describe("TaskAgreement", () => {
             const priceListBN = formatEther(parseEther(prices[i].toString()));
             expect(currentTaskPrice).to.equal(priceListBN);
             expect(currentTask.description).to.equal(taskDescriptions[i]);
-            expect(currentTask.provider.to).to.equal(provider.address);
-            expect(currentTask.consumer.to).to.equal(consumer.address);
+            expect(currentTask.vendor.to).to.equal(vendor.address);
+            expect(currentTask.client.to).to.equal(client.address);
             expect(currentTask.id).to.equal(i);
             expect(currentTask.dispute).to.equal(dispute.None);
             expect(newTask.price).to.equal(currentTask.price);
             expect(newTask.description).to.equal(currentTask.description);
-            expect(newTask.provider.to).to.equal(currentTask.provider.to);
-            expect(newTask.consumer.to).to.equal(currentTask.consumer.to);
+            expect(newTask.vendor.to).to.equal(currentTask.vendor.to);
+            expect(newTask.client.to).to.equal(currentTask.client.to);
             expect(newTask.id).to.equal(currentTask.id);
             expect(newTask.dispute).to.equal(currentTask.dispute);
         }
@@ -86,29 +86,29 @@ describe("TaskAgreement", () => {
     it("Should bring tasks 3 & 4 up to speed", async () => {
         let taskId = taskIds[2];
         // have to bring 3rd task all the way up to dispute.internal
-        await (await taskAgreement.connect(provider)
+        await (await taskAgreement.connect(vendor)
             .approveTask(taskId)).wait()
-        await (await taskAgreement.connect(consumer)
+        await (await taskAgreement.connect(client)
             .disapproveTask(taskId)).wait()
-        await (await taskAgreement.connect(provider)
+        await (await taskAgreement.connect(vendor)
             .approveTask(taskId)).wait()
         // have to bring 4rd task all the way up to dispute.internal
         taskId = taskIds[3];
-        await (await taskAgreement.connect(provider)
+        await (await taskAgreement.connect(vendor)
             .approveTask(taskId)).wait()
-        await (await taskAgreement.connect(consumer)
+        await (await taskAgreement.connect(client)
             .disapproveTask(taskId)).wait()
-        await (await taskAgreement.connect(provider)
+        await (await taskAgreement.connect(vendor)
             .approveTask(taskId)).wait()
         // have to bring 5th task all the way up to dispute.thirdParty
         taskId = taskIds[4];
-        await (await taskAgreement.connect(provider)
+        await (await taskAgreement.connect(vendor)
             .approveTask(taskId)).wait()
-        await (await taskAgreement.connect(consumer)
+        await (await taskAgreement.connect(client)
             .disapproveTask(taskId)).wait()
-        await (await taskAgreement.connect(provider)
+        await (await taskAgreement.connect(vendor)
             .approveTask(taskId)).wait()
-        await (await taskAgreement.connect(consumer)
+        await (await taskAgreement.connect(client)
             .disapproveTask(taskId)).wait()
         await (await taskAgreement.connect(thirdParty)
             .assignThirdParty(taskId)).wait()
@@ -116,7 +116,7 @@ describe("TaskAgreement", () => {
 
     it("Should NOT expire task before set time", async () => {
         const taskId = taskIds[6];
-        await (await taskAgreement.connect(consumer)
+        await (await taskAgreement.connect(client)
             .expireTask(taskId)).wait();
         const task = await taskAgreement.getTask(taskId);
         expect(task.completed).to.be.false;
@@ -127,12 +127,12 @@ describe("TaskAgreement", () => {
     //     await Promise.all([
     //         new Promise(resolve => setTimeout(resolve, 16000))
     //     ])
-    //     const consumerBalanceBefore = await consumer.getBalance();
-    //     const tx = await (await taskAgreement.connect(consumer)
+    //     const clientBalanceBefore = await client.getBalance();
+    //     const tx = await (await taskAgreement.connect(client)
     //         .expireTask(taskId)).wait();
     //     const task = await taskAgreement.getTask(taskId);
-    //     const consumerBalanceAfter = await consumer.getBalance();
-    //     const balanceDelta = consumerBalanceAfter.sub(consumerBalanceBefore);
+    //     const clientBalanceAfter = await client.getBalance();
+    //     const balanceDelta = clientBalanceAfter.sub(clientBalanceBefore);
     //     const gasUsed = tx.effectiveGasPrice.mul(tx.gasUsed);
     //     expect(task.completed).to.be.true;
     //     expect(balanceDelta).to.equal(task.price.sub(gasUsed));
@@ -140,19 +140,19 @@ describe("TaskAgreement", () => {
 
     it("Should NOT create task if description not valid length", async () => {
         await expect(
-            taskAgreement.createTask(provider.address, "", 15, {value: parseEther('35')})
+            taskAgreement.createTask(vendor.address, "", 15, {value: parseEther('35')})
         ).to.be.revertedWith("String argument must be of valid length")
     })
 
     it("Should NOT create task if no value is sent", async () => {
         await expect(
-            taskAgreement.createTask(provider.address, taskDescriptions[0], 15)
+            taskAgreement.createTask(vendor.address, taskDescriptions[0], 15)
         ).to.be.revertedWith("Must send ether to execute function")
     })
 
     it("Should NOT create task if no expirationdate is passed", async () => {
         await expect(
-            taskAgreement.createTask(provider.address, taskDescriptions[0], 0, {value: parseEther('35')})
+            taskAgreement.createTask(vendor.address, taskDescriptions[0], 0, {value: parseEther('35')})
         ).to.be.revertedWith("Must pass a valid expiration date")
     })
 
@@ -160,36 +160,36 @@ describe("TaskAgreement", () => {
         const taskId = taskIds[2];
         let task = (await taskAgreement.getTask(taskId));
         const prevTaskPrice = task.price;
-        await (await taskAgreement.connect(consumer)
+        await (await taskAgreement.connect(client)
             .addFunds(taskId, {value: parseEther('12')})).wait();
         task = await taskAgreement.getTask(taskId);
         const newTaskPrice = task.price;
         expect(newTaskPrice).to.equal(prevTaskPrice.add(ethers.BigNumber.from(parseEther('12')))); 
     })
 
-    it("Should NOT add funds to task if not consumer", async () => {
+    it("Should NOT add funds to task if not client", async () => {
         const taskId = taskIds[0];
         await expect(
             taskAgreement.connect(thirdParty)
                 .addFunds(taskId, {value: parseEther('12')})
-        ).to.be.revertedWith("Only the consumer of this task may add funds")
+        ).to.be.revertedWith("Only the client of this task may add funds")
         await expect(
-            taskAgreement.connect(provider)
+            taskAgreement.connect(vendor)
                 .addFunds(taskId, {value: parseEther('12')})
-        ).to.be.revertedWith("Only the consumer of this task may add funds")
+        ).to.be.revertedWith("Only the client of this task may add funds")
     })
 
     it("Should NOT add funds if no eth was received", async () => {
         const taskId = taskIds[0];
         await expect(
-            taskAgreement.connect(consumer)
+            taskAgreement.connect(client)
                 .addFunds(taskId)
         ).to.be.revertedWith("Must send ether to execute function")
     })
     
     it("Should NOT add funds if invalid taskId passed", async () => {
         await expect(
-            taskAgreement.connect(consumer)
+            taskAgreement.connect(client)
                 .addFunds(999, {value: parseEther('12')})
         ).to.be.revertedWith("Must pass a valid task ID")
     })
@@ -199,7 +199,7 @@ describe("TaskAgreement", () => {
         const timeToAdd = ethers.BigNumber.from(1020);
         let task = await taskAgreement.getTask(taskId);
         const initialExpiration = task.expiration;
-        await (await taskAgreement.connect(consumer)
+        await (await taskAgreement.connect(client)
             .addTime(taskId, timeToAdd)).wait();
         task = await taskAgreement.getTask(taskId);
         const newExpiration = task.expiration;
@@ -209,157 +209,157 @@ describe("TaskAgreement", () => {
     it("Should NOT add time if invalid time parameter", async () => {
         const taskId = taskIds[0];
         await expect(
-            taskAgreement.connect(consumer)
+            taskAgreement.connect(client)
                 .addTime(taskId, 0)
         ).to.be.revertedWith("Must pass a valid expiration date")
         await expect(
-            taskAgreement.connect(consumer)
+            taskAgreement.connect(client)
                 .addTime(taskId, -2)
         ).to.be.reverted;
     })
 
     it("Should NOT add time if invalid taskId passed", async () => {
         await expect(
-            taskAgreement.connect(consumer)
+            taskAgreement.connect(client)
                 .addTime(999, 42)
         ).to.be.revertedWith("Must pass a valid task ID");
     })
 
-    it("Should NOT add time if not consumer", async () => {
+    it("Should NOT add time if not client", async () => {
         const taskId = taskIds[0];
         await expect(
-            taskAgreement.connect(provider)
+            taskAgreement.connect(vendor)
                 .addTime(taskId, 55)
-        ).to.be.revertedWith("Only the consumer of this task may add expiration time");
+        ).to.be.revertedWith("Only the client of this task may add expiration time");
         await expect(
             taskAgreement.connect(thirdParty)
                 .addTime(taskId, 55)
-        ).to.be.revertedWith("Only the consumer of this task may add expiration time");
+        ).to.be.revertedWith("Only the client of this task may add expiration time");
     })
 
     it("Should add evidence to task correctly", async () => {
-        const [evidence, evidence2] = providerEvidence;
+        const [evidence, evidence2] = vendorEvidence;
         await taskAgreement
-            .connect(provider)
+            .connect(vendor)
             .addEvidence(taskIds[0], evidence);
         let task = await taskAgreement.getTask(taskIds[0]);
-        expect(task.provider.evidence.length).to.equal(1); 
-        expect(task.provider.evidence[0]).to.equal(evidence);
+        expect(task.vendor.evidence.length).to.equal(1); 
+        expect(task.vendor.evidence[0]).to.equal(evidence);
 
-        await taskAgreement.connect(consumer)
+        await taskAgreement.connect(client)
             .addEvidence(taskIds[0], evidence2);
         task = await taskAgreement.getTask(taskIds[0]);
-        expect(task.consumer.evidence.length).to.equal(1); 
-        expect(task.consumer.evidence[0]).to.equal(evidence2);
+        expect(task.client.evidence.length).to.equal(1); 
+        expect(task.client.evidence[0]).to.equal(evidence2);
     })
 
     it("Should NOT add evidence if string parameter empty", async () => {
         await expect(
-            taskAgreement.connect(consumer)
+            taskAgreement.connect(client)
                 .addEvidence(taskIds[0], "")
         ).to.be.revertedWith("String argument must be of valid length")
     })
 
-    it("Should NOT add evidence to task if not consumer or provider of task", async () => {
+    it("Should NOT add evidence to task if not client or vendor of task", async () => {
         await expect(
             taskAgreement.connect(thirdParty)
                 .addEvidence(taskIds[0], "Chruast")
         ).to.be.revertedWith("Can not interact with a task you're not a part of")
     })
 
-    it("Should NOT approve task.DISPUTE.NONE by consumer initially", async () => {
+    it("Should NOT approve task.DISPUTE.NONE by client initially", async () => {
         await expect(
-            taskAgreement.connect(consumer)
+            taskAgreement.connect(client)
                 .approveTask(taskIds[0])
-        ).to.be.revertedWith("Provider must approve task before you can approve eth transfer")
+        ).to.be.revertedWith("Vendor must approve task before you can approve eth transfer")
     })
 
-    it("Should approve task.DISPUTE.NONE by provider initially", async () => {
-        await (await taskAgreement.connect(provider)
+    it("Should approve task.DISPUTE.NONE by vendor initially", async () => {
+        await (await taskAgreement.connect(vendor)
             .approveTask(taskIds[0])).wait();
         const task = await taskAgreement.getTask(taskIds[0]);
-        expect(task.provider.approved).to.be.true;
+        expect(task.vendor.approved).to.be.true;
     })
 
-    it("Should NOT approve task.DISPUTE.NONE by provider twice", async () => {
-        // task was already approved by provider in previous test
+    it("Should NOT approve task.DISPUTE.NONE by vendor twice", async () => {
+        // task was already approved by vendor in previous test
         await expect(
-            taskAgreement.connect(provider)
+            taskAgreement.connect(vendor)
                 .approveTask(taskIds[0])
         ).to.be.revertedWith("You can not approve a task twice");
     })
 
-    it("Should approve task.DISPUTE.NONE by consumer and send eth to provider", async () => {
-        const providerBalanceBefore = await provider.getBalance();
-        await (await taskAgreement.connect(consumer)
+    it("Should approve task.DISPUTE.NONE by client and send eth to vendor", async () => {
+        const vendorBalanceBefore = await vendor.getBalance();
+        await (await taskAgreement.connect(client)
             .approveTask(taskIds[0])).wait();
         const task = await taskAgreement.getTask(taskIds[0]);
-        const providerBalanceAfter = await provider.getBalance();
-        const balanceDelta = providerBalanceAfter.sub(providerBalanceBefore);
-        expect(task.consumer.approved).to.be.true;
+        const vendorBalanceAfter = await vendor.getBalance();
+        const balanceDelta = vendorBalanceAfter.sub(vendorBalanceBefore);
+        expect(task.client.approved).to.be.true;
         expect(balanceDelta).to.equal(task.price);
-        expect(task.provider.approved).to.be.true;
+        expect(task.vendor.approved).to.be.true;
         expect(task.completed).to.be.true;
     })
 
-    it("Should NOT approve task.DISPUTE.NONE by consumer twice", async () => {
+    it("Should NOT approve task.DISPUTE.NONE by client twice", async () => {
         await expect(
-            taskAgreement.connect(consumer)
+            taskAgreement.connect(client)
                 .approveTask(taskIds[0])
         ).to.be.revertedWith("This task has already been completed");        
     })
 
-    it("Should disapprove task.DISPUTE.NONE by provider and return eth to consumer", async () => {
-        const consumerBalanceBefore = await consumer.getBalance();
-        await (await taskAgreement.connect(provider)
+    it("Should disapprove task.DISPUTE.NONE by vendor and return eth to client", async () => {
+        const clientBalanceBefore = await client.getBalance();
+        await (await taskAgreement.connect(vendor)
             .disapproveTask(taskIds[5])).wait();
-        const consumerBalanceAfter = await consumer.getBalance();
-        const balanceDelta = consumerBalanceAfter.sub(consumerBalanceBefore);
+        const clientBalanceAfter = await client.getBalance();
+        const balanceDelta = clientBalanceAfter.sub(clientBalanceBefore);
         const task = await taskAgreement.getTask(taskIds[5]);
         expect(balanceDelta).to.be.equal(task.price);
         expect(task.completed).to.be.true;
-        expect(task.provider.approved).to.be.false;
+        expect(task.vendor.approved).to.be.false;
     })
 
-    it("Should NOT disapprove task.DISPUTE.NONE by consumer before provider has chance to approve", async () => {
+    it("Should NOT disapprove task.DISPUTE.NONE by client before vendor has chance to approve", async () => {
         await expect(
-            taskAgreement.connect(consumer)
+            taskAgreement.connect(client)
                 .disapproveTask(taskIds[1])
-        ).to.be.revertedWith("Provider must approve task on their end before you can open a dispute")
+        ).to.be.revertedWith("Vendor must approve task on their end before you can open a dispute")
     })
 
-    it("Should disapprove task.DISPUTE.NONE by consumer after provider has approved task", async () => {
+    it("Should disapprove task.DISPUTE.NONE by client after vendor has approved task", async () => {
         const taskId = taskIds[1];
-        await (await taskAgreement.connect(provider)
+        await (await taskAgreement.connect(vendor)
             .approveTask(taskId)).wait();
-        await (await taskAgreement.connect(consumer)
+        await (await taskAgreement.connect(client)
             .disapproveTask(taskId)).wait();
         const task = await taskAgreement.getTask(taskId);
         expect(task.dispute).to.equal(dispute.Internal);
-        expect(task.consumer.approved).to.false;
-        expect(task.provider.approved).to.false;
+        expect(task.client.approved).to.false;
+        expect(task.vendor.approved).to.false;
     })
 
-    it("Should NOT disapprove task.DISPUTE.INTERNAL by consumer before provider approves", async () => {
+    it("Should NOT disapprove task.DISPUTE.INTERNAL by client before vendor approves", async () => {
         const taskId = taskIds[1];
         await expect(
-            taskAgreement.connect(consumer)
+            taskAgreement.connect(client)
                 .disapproveTask(taskId)
-        ).to.be.revertedWith("Provider must approve task on their end before you can open a dispute")
+        ).to.be.revertedWith("Vendor must approve task on their end before you can open a dispute")
     })
 
-    it("Should disapprove task.DISPUTE.INTERNAL by provider and send eth back to consumer", async () => {
+    it("Should disapprove task.DISPUTE.INTERNAL by vendor and send eth back to client", async () => {
         const taskId = taskIds[1];
-        const consumerBalanceBefore = await consumer.getBalance();
-        await (await taskAgreement.connect(provider)
+        const clientBalanceBefore = await client.getBalance();
+        await (await taskAgreement.connect(vendor)
             .disapproveTask(taskId)).wait();
 
         const task = await taskAgreement.getTask(taskId);
         const taskPrice = formatEther(task.price);
-        const consumerBalanceAfter = await consumer.getBalance();
+        const clientBalanceAfter = await client.getBalance();
 
         expect(task.completed).to.be.true;
-        expect(consumerBalanceAfter.sub(consumerBalanceBefore))
+        expect(clientBalanceAfter.sub(clientBalanceBefore))
             .to.equal(parseEther(taskPrice))
     })
 
@@ -371,25 +371,25 @@ describe("TaskAgreement", () => {
         ).to.revertedWith("Cannot assign a third party to this task until internally decided");
     })
 
-    it("Should disapprove task.DISPUTE.INTERNAL by consumer", async () => {
+    it("Should disapprove task.DISPUTE.INTERNAL by client", async () => {
         const taskId = taskIds[2];
-        await (await taskAgreement.connect(consumer)
+        await (await taskAgreement.connect(client)
             .disapproveTask(taskId)).wait()
         const task = await taskAgreement.getTask(taskId);
         expect(task.dispute).to.equal(dispute.ThirdParty)
     })
 
-    it("Should approve task.DISPUTE.INTERNAL by consumer & send eth to provider", async () => {
+    it("Should approve task.DISPUTE.INTERNAL by client & send eth to vendor", async () => {
         const taskId = taskIds[3];
-        const providerBalanceBefore = await provider.getBalance();
-        await (await taskAgreement.connect(consumer)
+        const vendorBalanceBefore = await vendor.getBalance();
+        await (await taskAgreement.connect(client)
             .approveTask(taskId)).wait();
         const task = await taskAgreement.getTask(taskId);
-        const providerBalanceAfter = await provider.getBalance();
-        const balanceDelta = providerBalanceAfter.sub(providerBalanceBefore);
+        const vendorBalanceAfter = await vendor.getBalance();
+        const balanceDelta = vendorBalanceAfter.sub(vendorBalanceBefore);
         expect(balanceDelta).to.equal(task.price);
-        expect(task.consumer.approved).to.be.true;
-        expect(task.provider.approved).to.be.true;
+        expect(task.client.approved).to.be.true;
+        expect(task.vendor.approved).to.be.true;
         expect(task.completed).to.be.true;
         expect(task.dispute).to.equal(dispute.Internal);
     })
@@ -397,11 +397,11 @@ describe("TaskAgreement", () => {
     it("Should NOT dissaprove||approve task.DISPUTE.THIRDPARTY if not third party", async () => {
         const taskId = taskIds[2];
         await (expect(
-            taskAgreement.connect(provider)
+            taskAgreement.connect(vendor)
                 .approveTask(taskId)
         ).to.revertedWith("Only the third party may make a decision at this stage of dispute"))
         await (expect(
-            taskAgreement.connect(consumer)
+            taskAgreement.connect(client)
                 .disapproveTask(taskId)
         ).to.revertedWith("Only the third party may make a decision at this stage of dispute"))
     })
@@ -413,14 +413,14 @@ describe("TaskAgreement", () => {
         ).to.revertedWith("Must pass a valid task ID");
     })
 
-    it("Should NOT assign third party if thirdParty == consumer || provider", async () => {
+    it("Should NOT assign third party if thirdParty == client || vendor", async () => {
         const taskId = taskIds[2];
         await expect(
-            taskAgreement.connect(consumer)
+            taskAgreement.connect(client)
                 .assignThirdParty(taskId)
         ).to.be.revertedWith("Third party can not already be connected to this task");
         await expect(
-            taskAgreement.connect(provider)
+            taskAgreement.connect(vendor)
                 .assignThirdParty(taskId)
         ).to.be.revertedWith("Third party can not already be connected to this task");
     })
@@ -458,17 +458,17 @@ describe("TaskAgreement", () => {
         expect(task.thirdParty.evidence.length).to.equal(1); 
         expect(task.thirdParty.evidence[0]).to.equal("yeeyee");
 
-        await taskAgreement.connect(consumer)
+        await taskAgreement.connect(client)
             .addEvidence(taskId, "yeeyee");
         task = await taskAgreement.getTask(taskId);
-        expect(task.consumer.evidence.length).to.equal(1); 
-        expect(task.consumer.evidence[0]).to.equal("yeeyee");
+        expect(task.client.evidence.length).to.equal(1); 
+        expect(task.client.evidence[0]).to.equal("yeeyee");
 
-        await taskAgreement.connect(provider)
+        await taskAgreement.connect(vendor)
             .addEvidence(taskId, "yeeyee");
         task = await taskAgreement.getTask(taskId);
-        expect(task.provider.evidence.length).to.equal(1); 
-        expect(task.provider.evidence[0]).to.equal("yeeyee");
+        expect(task.vendor.evidence.length).to.equal(1); 
+        expect(task.vendor.evidence[0]).to.equal("yeeyee");
     })
 
     /* if i were to include a voting feature instead of just one thirdParty, 
@@ -476,15 +476,15 @@ describe("TaskAgreement", () => {
     
     it("Should disapprove task.DISPUTE.THIRDPARTY as thirdParty", async () => {
         const taskId = taskIds[2];
-        const consumerBalanceBefore = await consumer.getBalance();
+        const clientBalanceBefore = await client.getBalance();
         const thirdPartyBalanceBefore = await thirdParty.getBalance();
         const tx = await (await taskAgreement
             .connect(thirdParty)
             .disapproveTask(taskId)).wait();
         const task = await taskAgreement.getTask(taskId);
         // am supposed to be checking this once task.thirdParty is assigned
-        const consumerBalanceAfter = await consumer.getBalance();
-        const consumerBalanceDelta = consumerBalanceAfter.sub(consumerBalanceBefore);
+        const clientBalanceAfter = await client.getBalance();
+        const clientBalanceDelta = clientBalanceAfter.sub(clientBalanceBefore);
         const thirdPartyBalanceAfter = await thirdParty.getBalance();
         const thirdPartyBalanceDelta = thirdPartyBalanceAfter.sub(thirdPartyBalanceBefore);
         const commission = await taskAgreement.commission();
@@ -492,21 +492,21 @@ describe("TaskAgreement", () => {
         const newTaskPrice = task.price.sub(thirdPartyCommission);
         const gasUsed = tx.effectiveGasPrice.mul(tx.gasUsed);
 
-        expect(consumerBalanceDelta).to.equal(newTaskPrice);
+        expect(clientBalanceDelta).to.equal(newTaskPrice);
         expect(thirdPartyBalanceDelta.add(gasUsed)).to.equal(thirdPartyCommission);
         expect(task.completed).to.be.true;
     })
 
     it("Should approve task.DISPUTE.THIRDPARTY as thirdParty", async () => {
         const taskId = taskIds[4];
-        const providerBalanceBefore = await provider.getBalance();
+        const vendorBalanceBefore = await vendor.getBalance();
         const thirdPartyBalanceBefore = await thirdParty.getBalance();
         const tx = await (await taskAgreement
             .connect(thirdParty)
             .approveTask(taskId)).wait();
         const task = await taskAgreement.getTask(taskId);
-        const providerBalanceAfter = await provider.getBalance();
-        const providerBalanceDelta = providerBalanceAfter.sub(providerBalanceBefore);
+        const vendorBalanceAfter = await vendor.getBalance();
+        const vendorBalanceDelta = vendorBalanceAfter.sub(vendorBalanceBefore);
         const thirdPartyBalanceAfter = await thirdParty.getBalance();
         const thirdPartyBalanceDelta = thirdPartyBalanceAfter.sub(thirdPartyBalanceBefore);
         const commission = await taskAgreement.commission();
@@ -514,7 +514,7 @@ describe("TaskAgreement", () => {
         const newTaskPrice = task.price.sub(thirdPartyCommission);
         const gasUsed = tx.effectiveGasPrice.mul(tx.gasUsed);
 
-        expect(providerBalanceDelta).to.equal(newTaskPrice);
+        expect(vendorBalanceDelta).to.equal(newTaskPrice);
         expect(thirdPartyBalanceDelta.add(gasUsed)).to.equal(thirdPartyCommission);
         expect(task.completed).to.be.true;
         expect(task.thirdParty.approved).to.be.true;
@@ -523,19 +523,19 @@ describe("TaskAgreement", () => {
     it("Should NOT allow function to be called on a completed task", async () => {
         const taskId = taskIds[0];
         await expect(
-            taskAgreement.connect(consumer)
+            taskAgreement.connect(client)
                 .addEvidence(taskId, "Evidence")
         ).to.revertedWith("This task has already been completed");
         await expect(
-            taskAgreement.connect(consumer)
+            taskAgreement.connect(client)
                 .approveTask(taskId)
         ).to.be.revertedWith("This task has already been completed")
         await expect(
-            taskAgreement.connect(consumer)
+            taskAgreement.connect(client)
                 .disapproveTask(taskId)
         ).to.be.revertedWith("This task has already been completed")
         await expect(
-            taskAgreement.connect(consumer)
+            taskAgreement.connect(client)
                 .assignThirdParty(taskId)
         ).to.be.revertedWith("This task has already been completed")
     })
