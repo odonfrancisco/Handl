@@ -3,17 +3,8 @@ pragma solidity ^0.8.0;
 
 import "hardhat/console.sol";
 
-// ensure that vendor != client
-// ensure that NOR vendor NOR client NOR third party can be address.this
-// ensure that msg.value is returned if user addFunds() but task expires 
-// test both above
-// test for getUserTasks();
-// add tests for addFunds + addTime notCompleted modifier 
-// // side noat, i don't even think testing for the 
-// // modifier is necesary. already tested with all the other
-// // functions, so why these as well?
-// need to work on the business specifics on whether expire() works when task.thirdParty
-// i think ^ should be yes
+// would like to add a check that doesn't expire task if client is approving task
+// need to test that userTaskRef is updated when task is completed
 
 contract TaskAgreement {
     event TaskCreated (
@@ -43,6 +34,7 @@ contract TaskAgreement {
     struct TaskRef {
         uint id;
         string description;
+        bool completed;
     }
 
     enum DisputeStage {
@@ -153,7 +145,23 @@ contract TaskAgreement {
             to.transfer(newTxPrice);
             task.thirdParty.to.transfer(thirdPartyCommission);
         }
+        updateUserTaskRef(task.vendor.to, task.id);
+        updateUserTaskRef(task.client.to, task.id);
+        if(task.thirdParty.to != address(0)) {
+            updateUserTaskRef(task.thirdParty.to, task.id);
+        }
+
         task.completed = true;
+    }
+
+    function updateUserTaskRef(address to, uint id) internal {
+        TaskRef[] storage vendorTasks = userTasks[to];
+        for(uint i = 0; i < vendorTasks.length; i++){
+            if(vendorTasks[i].id == id) {
+                vendorTasks[i].completed = true;
+                break;
+            }
+        }
     }
 
     function expireTask(uint taskId) public returns(bool){

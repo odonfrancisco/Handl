@@ -45,8 +45,6 @@ export default function TaskCreate({ handleCreateTask }) {
                     return;
             }
             const expirationTime = expiresIn * Timeframe[timeFrame];
-            console.log('expirationTime');
-            console.log(expirationTime);
 
             handleCreateTask(
                 description, 

@@ -10,7 +10,7 @@ import { Web3Context } from './components/utils/Web3Context';
 import NavBar from './components/NavBar';
 import TaskCreate from './components/task/TaskCreate';
 import TaskList from './components/task/TaskList';
-import TaskDetails from './components/task/details/TaskDetails';
+import TaskDetails from './components/task/TaskDetails';
 
 // feature creep
 // give eth locked a history of price additions for people to verify shit
@@ -31,10 +31,7 @@ function App() {
       expiresIn,
       {value: parseEther(amount)});
     await tx.wait().then(tx => {
-      console.log("tx");
-      console.log(tx.events[0].args);
       const id = tx.events[0].args.id;
-      // console.log(event.)
       setRedirect(<Redirect to={{
         pathname: `/tasks/${id.toString()}`
       }}/>);
@@ -90,7 +87,10 @@ function App() {
               <TaskList getTasks={getUserTasks}/>
             </Route>
             <Route exact path="/disputedTasks">
-              <TaskList getTasks={getDisputedTasks}/>
+              <TaskList 
+                getTasks={getDisputedTasks}
+                disputed={true}
+              />
             </Route>
             <Route exact path="/tasks/:id">
               <TaskDetails/>

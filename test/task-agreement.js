@@ -114,6 +114,11 @@ describe("TaskAgreement", () => {
             .assignThirdParty(taskId)).wait()
     })
 
+    it("Should getUserTasks()", async () => {
+        const userTasks = await taskAgreement.getUserTasks();
+        expect(userTasks.length).to.equal(prices.length);
+    })
+
     it("Should NOT expire task before set time", async () => {
         const taskId = taskIds[6];
         await (await taskAgreement.connect(client)
@@ -156,6 +161,18 @@ describe("TaskAgreement", () => {
         ).to.be.revertedWith("Must pass a valid expiration date")
     })
 
+    it("Should NOT create task if vendor === client", async () => {
+        await expect(
+            taskAgreement.createTask(client.address, taskDescriptions[0], 15, {value: parseEther('22')})
+        ).to.be.revertedWith("Vendor & Client addresses should be distinct");
+    })
+
+    it("Should NOT create task if vendor === smartContract address", async () => {
+        await expect(
+            taskAgreement.createTask(taskAgreement.address, taskDescriptions[0], 17, {value: parseEther('22')})
+        ).to.be.revertedWith("This smart contract can not be a task vendor");
+    })
+
     it("Should add funds to task correctly", async () => {
         const taskId = taskIds[2];
         let task = (await taskAgreement.getTask(taskId));
@@ -193,6 +210,29 @@ describe("TaskAgreement", () => {
                 .addFunds(999, {value: parseEther('12')})
         ).to.be.revertedWith("Must pass a valid task ID")
     })
+
+    // it("Should NOT add funds + return msg.value if task is expired", async () => {
+    //     const clientBalanceBefore = await client.getBalance();
+    //     const initialEth = parseEther('8');
+    //     const tx = await (await taskAgreement.createTask(
+    //         vendor.address,
+    //         "Chreast",
+    //         15,
+    //         {value: initialEth}
+    //     )).wait();
+    //     const taskId = tx.events[0].args.id;
+    //     const addedEth = parseEther('12');
+    //     await Promise.all([
+    //         new Promise(resolve => setTimeout(resolve, 16000))
+    //     ])
+    //     const tx2 = await (await taskAgreement.addFunds(taskId, {value: addedEth})).wait();
+    //     const clientBalanceAfter = await client.getBalance();
+    //     const ethUsed = tx.effectiveGasPrice.mul(tx.gasUsed);
+    //     const ethUsed2 = tx2.effectiveGasPrice.mul(tx2.gasUsed);
+    //     const clientBalanceAfterPlusGas = clientBalanceAfter.add(ethUsed).add(ethUsed2);
+    //     expect(clientBalanceAfterPlusGas.eq(clientBalanceBefore), 
+    //         "Expect clientBalance to equal balance before creating task")
+    // })
 
     it("Should add time correctly", async () => {
         const taskId = taskIds[0];
@@ -537,6 +577,14 @@ describe("TaskAgreement", () => {
         await expect(
             taskAgreement.connect(client)
                 .assignThirdParty(taskId)
+        ).to.be.revertedWith("This task has already been completed")
+        await expect(
+            taskAgreement.connect(client)
+                .addFunds(taskId, {value: parseEther('11')})
+        ).to.be.revertedWith("This task has already been completed")
+        await expect(
+            taskAgreement.connect(client)
+                .addTime(taskId, 15)
         ).to.be.revertedWith("This task has already been completed")
     })
 })
