@@ -89,7 +89,7 @@ export default function TaskCreate({ handleCreateTask }) {
                     justifyContent="center"
                 >
                     <Typography variant="h3">
-                        Create {description}
+                        Create {description || ' a Task'}
                     </Typography>
                 </Grid>
                 <Box p={2}/>

@@ -69,17 +69,21 @@ const ApproveButtons = ({
     )
 }
 
-export const ParticipantInfo = ({isClient, isVendor, dispute}) => (
+export const ParticipantInfo = ({isCompleted, isClient, isVendor, dispute}) => (
     <Box m={2}>
         <Typography>
             You are the {isClient ? "Client" : isVendor ? "Vendor" : "Third Party"}
             <br/>
-            {/* make colorful or some shit  */}
-            {DisputeStages[dispute] === "Internal Dispute"
-                && !isClient
-                && "This is your second chance to provide " + 
-                    "evidence and make a case for yourself " +
-                    "before your client decides to involve a third party. " }
+            <Typography
+                color="secondary"
+            >
+                {DisputeStages[dispute] === "Internal Dispute"
+                    && isVendor
+                    && !isCompleted
+                    && "This is your second chance to provide " + 
+                        "evidence and make a case for yourself " +
+                        "before your client decides to involve a third party. " }
+            </Typography>
         </Typography>
     </Box>
 )

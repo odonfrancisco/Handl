@@ -1,3 +1,9 @@
+// stylinf
+import Grid from '@material-ui/core/Grid';
+import Box from '@material-ui/core/Box';
+import Button from '@material-ui/core/Button';
+import AccountBalanceWallet from '@material-ui/icons/AccountBalanceWallet'
+// react
 import { useContext, useEffect } from 'react';
 import { Web3Context } from './Web3Context';
 import contractArtifact from '../../contracts/contracts/TaskAgreement.sol/TaskAgreement.json';
@@ -38,10 +44,10 @@ export default function MetaMask() {
 				// Hardhat Local
                 // need a way to dynamically retrieve these values
 				if (chainId === '0x7a69') {
-					contractAddress = '0xd6e1afe5cA8D00A2EFC01B89997abE2De47fdfAf';
+					contractAddress = '0x2E2Ed0Cfd3AD2f1d34481277b3204d807Ca2F8c2';
                 // Rinkeby
 				} else if (chainId === '0x4') {
-					contractAddress = '';
+					contractAddress = '0xC2400df68E385508DA03f106d283041A34888969';
                 }
                 
                 const signer = provider.getSigner(account);
@@ -64,13 +70,19 @@ export default function MetaMask() {
     }
 
     return (
-        <div>
-            <button
-                onClick={enableEth}
-            >
-                Connect Wallet
-            </button>
-        </div>
+        <>
+            <Box pt={8}/>
+            <Grid container justifyContent="center">
+                <Button
+                    variant="outlined"
+                    size="large"
+                    onClick={enableEth}
+                    startIcon={<AccountBalanceWallet/>}
+                >
+                    Connect Wallet
+                </Button>
+            </Grid>
+        </>
     )
     
 }

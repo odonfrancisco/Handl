@@ -1,14 +1,10 @@
 // Styling
 import Grid from '@material-ui/core/Grid';
-import Box from '@material-ui/core/Box';
-import Typography from '@material-ui/core/Typography';
 // React
 import React, { useState, useEffect, useContext } from 'react'
 import { useParams } from 'react-router'
 // Components
-import { 
-    ParticipantAdminPanel,
-    ParticipantInfo } from './details/ParticipantInfo';
+import { ParticipantAdminPanel } from './details/ParticipantInfo';
 import { 
     TaskTitle,
     TaskHeader,
@@ -29,8 +25,6 @@ const Clientinput = {
 }
 
 const address0 = "0x0000000000000000000000000000000000000000";
-
-// need to test if expired without expire button
 
 // feature creep
 // a crucial piece would be a sort of message board on taskDetails page

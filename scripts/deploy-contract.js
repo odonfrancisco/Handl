@@ -7,15 +7,15 @@ const hre = require("hardhat");
 
 const parseEther = hre.ethers.utils.parseEther;
 
-const vendorEvidence = [
+const roofVendor = [
   "https://www.acutaboveexteriors.com/wp-content/uploads/2020/05/file-3.jpg",
   "https://www.sempersolaris.com/wp-content/uploads/2018/08/roof-1-760x340.jpg",
-  "https://thumbs.dreamstime.com/z/old-bad-curling-roof-shingles-house-home-here-comes-another-expensive-improvement-project-contractor-going-41165426.jpg"
+  "https://durhamnc.stormguardrc.com/wp-content/uploads/sites/59/2019/04/Before-After-Roofing-Townhomes-Brier-Creek.jpg"
 ];
-const clientEvidence = [
+const roofClient = [
   "http://www.homebyhomeexteriors.com/wp-content/uploads/2014/04/photo-5.jpg",
   "http://gjkeller.com/wp-content/uploads/2017/05/when-roofing-goes-wrong-1.jpg",
-  "https://durhamnc.stormguardrc.com/wp-content/uploads/sites/59/2019/04/Before-After-Roofing-Townhomes-Brier-Creek.jpg"
+  "https://thumbs.dreamstime.com/z/old-bad-curling-roof-shingles-house-home-here-comes-another-expensive-improvement-project-contractor-going-41165426.jpg"
 ];
 
 const pizzaVendor = [
@@ -24,7 +24,6 @@ const pizzaVendor = [
 ]
 const pizzaClient = [
   "https://static.independent.co.uk/s3fs-public/thumbnails/image/2017/06/30/10/istock-501964582-0.jpg",
-  ""
 ]
 
 const storeFrontVendor = [
@@ -38,23 +37,59 @@ const woodDeskVendor = [
   "https://sethrolland.com/wp-content/uploads/2015/07/Trimerous-Desk-1280x853-c-default.jpg",
 ]
 
+const lawnClient = [
+  "https://c8.alamy.com/comp/J2PYME/very-badly-laid-turf-grass-lawn-which-hasnt-bonded-with-the-stony-J2PYME.jpg",
+  "https://i.stack.imgur.com/o2JDE.jpg"
+]
+
+const lawnVendor = [
+  "https://contentgrid.thdstatic.com/hdus/en_US/DTCCOMNEW/Articles/how-to-mow-a-lawn-hero.jpg",
+  "https://monstermowing.com/wp-content/uploads/2011/10/GreenLawn.jpg"
+]
+
+const evidenceArr = [
+  {
+    vendor: roofVendor,
+    client: roofClient
+  },
+  {
+    vendor: pizzaVendor,
+    client: pizzaClient
+  },
+  {
+    vendor: storeFrontVendor,
+    client: storeFrontClient
+  },
+  {
+    vendor: woodDeskVendor,
+    client: []
+  },
+  {
+    vendor: lawnVendor,
+    client: lawnClient
+  }
+]
+
 const taskDescriptions = [
   "Replace Roof Tiles",
   "Pizza Order in 1 hour or less",
   "Reduce Storefront Overhead by 20%",
-  "Custom Wood Desk"
+  "Custom Wood Desk",
+  "Mow Lawn"
 ]
 const prices = [
-  '12',
-  '3',
-  '45',
-  '2'
+  '1.3',
+  '.05',
+  '4',
+  '2',
+  '.08'
 ]
 const expirationTimes = [
   432000,
   3600,
   600000,
-  50000012
+  50000012,
+  66000
 ]
 
 
@@ -83,9 +118,17 @@ async function main() {
 
   for(let i = 0; i < taskIds.length; i++) { 
     const taskId = taskIds[i];
-    for(let e = 0; e < vendorEvidence.length; e++) {
-      await taskAgreement.connect(signers[0]).addEvidence(taskId, clientEvidence[e]);
-      await taskAgreement.connect(signers[1]).addEvidence(taskId, vendorEvidence[e]);  
+    const vendorEvidence = evidenceArr[i].vendor;
+    const clientEvidence = evidenceArr[i].client;
+
+    let e;
+    for(e = 0; e < vendorEvidence.length ; e++) {
+      const evidence = vendorEvidence[e];
+      await taskAgreement.connect(vendor).addEvidence(taskId, evidence);
+    }
+    for(e = 0; e < clientEvidence.length ; e++) {
+      const evidence = clientEvidence[e];
+      await taskAgreement.connect(client).addEvidence(taskId, evidence);
     }
   }
   // brings tasks up to dispute.thirdparty
@@ -93,15 +136,24 @@ async function main() {
     const taskId = taskIds[i];
     await (await taskAgreement.connect(vendor)
       .approveTask(taskId)).wait()
+    if(i === 3) continue;
     await (await taskAgreement.connect(client)
         .disapproveTask(taskId)).wait()
+    if(i === 2) continue;
     await (await taskAgreement.connect(vendor)
         .approveTask(taskId)).wait()
+    if(i === 0) {
+      await (await taskAgreement.connect(client)
+        .approveTask(taskId)).wait()
+      continue;
+    }
     await (await taskAgreement.connect(client)
         .disapproveTask(taskId)).wait()
-    if(i % 2 === 0) {
+    if(i === 4) {
       await (await taskAgreement.connect(thirdParty)
           .assignThirdParty(taskId)).wait()
+      await (await taskAgreement.connect(thirdParty)
+          .disapproveTask(taskId)).wait()
     }
   }
   console.log("TaskAgreement contract deployed to: ", taskAgreement.address);  

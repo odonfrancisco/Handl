@@ -10,7 +10,7 @@ import Sendicon from '@material-ui/icons/Send'
 import ImageList from '@material-ui/core/ImageList';
 import ImageListItem from '@material-ui/core/ImageListItem';
 // React
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 // timeframe enum
 const Timeframe = {
@@ -159,6 +159,10 @@ export const ClientInputs = ({inputChoice, addTime, addFunds}) => {
     const [err, setErr] = useState('');        
     const [timeFrame, setTimeFrame] = useState('days');
     const [input, setInput] = useState('');
+    
+    useEffect(() => {
+        setInput('');
+    }, [inputChoice])
 
     const generateErrorMessage = message => {
         setErr(message);

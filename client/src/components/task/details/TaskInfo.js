@@ -27,7 +27,9 @@ export const TaskTitle = ({ description, completed }) => (
             </Typography>
         </Grid>
         <Grid item>
-            <Typography>
+            <Typography
+                color="error"
+            >
                 {completed 
                     && "This task has been completed"}
             </Typography>
@@ -108,7 +110,8 @@ export const TaskHeader = ({
                 isParticipant={isParticipant}
             />
             {isParticipant
-                && <ParticipantInfo 
+                && <ParticipantInfo
+                        isCompleted={task.completed} 
                         isClient={isClient}
                         isVendor={isVendor}
                         dispute={task.dispute}
